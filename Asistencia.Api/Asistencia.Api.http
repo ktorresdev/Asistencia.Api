@@ -1,0 +1,6 @@
+@Asistencia.Api_HostAddress = http://localhost:5118
+
+GET {{Asistencia.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

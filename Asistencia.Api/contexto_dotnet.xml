@@ -1,0 +1,1028 @@
+This file is a merged representation of a subset of the codebase, containing specifically included files and files not matching ignore patterns, combined into a single document by Repomix.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of a subset of the repository's contents that is considered the most important context.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+- Pay special attention to the Repository Description. These contain important context and guidelines specific to this project.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Only files matching these patterns are included: **/*.cs, **/*.csproj, **/*.sln, **/*.cshtml, **/*.json, **/*.sql, Dockerfile
+- Files matching these patterns are excluded: **/bin/**, **/obj/**, **/.vs/**, **/.git/**, **/wwwroot/lib/**, **/Migrations/**, **/appsettings.Development.json
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<user_provided_header>
+Este es un proyecto en .NET Core. Analiza la estructura.
+</user_provided_header>
+
+<directory_structure>
+.config/dotnet-tools.json
+appsettings.json
+Asistencia.Api.csproj
+Asistencia.Api.sln
+Controllers/AsignacionTurnoController.cs
+Controllers/AuthController.cs
+Controllers/FichaTrabajadorController.cs
+Controllers/HorarioTurnoController.cs
+Controllers/MarcacionAsistenciaController.cs
+Controllers/ReporteController.cs
+Controllers/SucursalesController.cs
+Controllers/TipoTurnoController.cs
+Controllers/TrabajadoresController.cs
+Controllers/TurnosController.cs
+Controllers/WeatherForecastController.cs
+Program.cs
+Properties/launchSettings.json
+repomix.config.json
+WeatherForecast.cs
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path=".config/dotnet-tools.json">
+{
+  "version": 1,
+  "isRoot": true,
+  "tools": {}
+}
+</file>
+
+<file path="appsettings.json">
+{
+  "ConnectionStrings": {
+    "RrhhConnection": "Server=(local);Database=DB_RRHH;User=sa;Password=12345678;TrustServerCertificate=True;",
+    "RrhhConnection2": "Server=192.168.10.41\\MSSQLSERVER2019;Database=DB_RRHH;User=sa;Password=Energigas2025;TrustServerCertificate=True;"
+  },
+  "Jwt": {
+    "Key": "CAMBIA_ESTA_CLAVE_POR_UNA_MUY_LARGA_Y_SECRETA_!12345",
+    "Issuer": "Asistencia.Api",
+    "Audience": "Asistencia.Clients",
+    "AccessTokenMinutes": 120,
+    "RefreshTokenDays": 30
+  },
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  },
+  "AllowedHosts": "*"
+}
+</file>
+
+<file path="Asistencia.Api.csproj">
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.22" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Data\Asistencia.Data.csproj" />
+    <ProjectReference Include="..\Services\Asistencia.Services.csproj" />
+  </ItemGroup>
+
+</Project>
+</file>
+
+<file path="Asistencia.Api.sln">
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.14.36623.8 d17.14
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Asistencia.Api", "Asistencia.Api.csproj", "{4CEAEA50-5500-42C1-BB4C-3A424D73391C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Asistencia.Data", "..\Data\Asistencia.Data.csproj", "{E57E1FF7-3618-4673-87A4-87B1D4975208}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Asistencia.Services", "..\Services\Asistencia.Services.csproj", "{36A724AB-953F-47CE-BFE8-4B8BFC7EDF4E}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{4CEAEA50-5500-42C1-BB4C-3A424D73391C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4CEAEA50-5500-42C1-BB4C-3A424D73391C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4CEAEA50-5500-42C1-BB4C-3A424D73391C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4CEAEA50-5500-42C1-BB4C-3A424D73391C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E57E1FF7-3618-4673-87A4-87B1D4975208}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E57E1FF7-3618-4673-87A4-87B1D4975208}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E57E1FF7-3618-4673-87A4-87B1D4975208}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E57E1FF7-3618-4673-87A4-87B1D4975208}.Release|Any CPU.Build.0 = Release|Any CPU
+		{36A724AB-953F-47CE-BFE8-4B8BFC7EDF4E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{36A724AB-953F-47CE-BFE8-4B8BFC7EDF4E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{36A724AB-953F-47CE-BFE8-4B8BFC7EDF4E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{36A724AB-953F-47CE-BFE8-4B8BFC7EDF4E}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {E430494E-E207-4BB4-9EFC-FEF805048ED3}
+	EndGlobalSection
+EndGlobal
+</file>
+
+<file path="Controllers/AsignacionTurnoController.cs">
+using Asistencia.Data.Entities.MarcacionAsistenciaEntites;
+using Asistencia.Services.Dtos;
+using Asistencia.Services.Implements;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+
+namespace Asistencia.Api.Controllers
+{
+    [ApiController]
+    [Authorize]
+    [Route("api/Rrhh/[controller]")]
+    public class AsignacionTurnoController : ControllerBase
+    {
+        private readonly IAsignacionTurnoService _asignacionTurnoService;
+
+        public AsignacionTurnoController(IAsignacionTurnoService asignacionTurnoService)
+        {
+            _asignacionTurnoService = asignacionTurnoService;
+        }
+
+        [HttpGet]
+        public async Task<ActionResult<PagedResult<AsignacionTurno>>> GetAllAsync([FromQuery] PaginationDto pagination)
+        {
+            var asignaciones = await _asignacionTurnoService.GetAllAsync(pagination);
+            return Ok(asignaciones);
+        }
+
+        [HttpGet("{id:int}", Name = "GetByIdAsync")]
+        public async Task<ActionResult<AsignacionTurno>> GetByIdAsync(int id)
+        {
+            var asignacion = await _asignacionTurnoService.GetByIdAsync(id);
+            if (asignacion == null)
+            {
+                return NotFound($"No se encontró la asignación de turno con ID {id}.");
+            }
+            return Ok(asignacion);
+        }
+
+        [HttpPost]
+        public async Task<ActionResult<AsignacionTurno>> CreateAsync([FromBody] AsignacionTurno createDto)
+        {
+            if (!ModelState.IsValid) return BadRequest(ModelState);
+
+            var nuevaAsignacion = await _asignacionTurnoService.AddAsync(createDto);
+
+            // Usamos CreatedAtAction para devolver un 201 con la URL del nuevo recurso
+            return CreatedAtAction(nameof(GetByIdAsync), new { id = nuevaAsignacion.Id }, nuevaAsignacion);
+        }
+
+        [HttpPut("{id:int}")]
+        public async Task<IActionResult> UpdateAsync(int id, [FromBody] AsignacionTurno updateDto)
+        {
+            if (!ModelState.IsValid) return BadRequest(ModelState);
+
+            await _asignacionTurnoService.UpdateAsync(id, updateDto);
+            return NoContent();
+        }
+
+        [HttpDelete("{id:int}")]
+        public async Task<IActionResult> DeleteAsync(int id)
+        {
+            await _asignacionTurnoService.DeleteAsync(id);
+            return NoContent();
+        }
+    }
+}
+</file>
+
+<file path="Controllers/AuthController.cs">
+using Asistencia.Services.Dtos;
+using Asistencia.Services.Implements;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+
+namespace Asistencia.Api.Controllers
+{
+    [Route("api/[controller]")]
+    [ApiController]
+    public class AuthController : ControllerBase
+    {
+        private readonly IAuthService _auth;
+
+        public AuthController(IAuthService auth) => _auth = auth;
+
+        [HttpPost("register")]
+        public async Task<IActionResult> Register(RegisterRequest req)
+        {
+            await _auth.RegisterAsync(req);
+            return Created(string.Empty, null);
+        }
+
+        [HttpPost("login")]
+        public async Task<IActionResult> Login(LoginRequest req)
+        {
+            var res = await _auth.LoginAsync(req);
+            return Ok(res);
+        }
+
+        [HttpPost("refresh")]
+        public async Task<IActionResult> Refresh(RefreshRequest req)
+        {
+            var res = await _auth.RefreshAsync(req);
+            return Ok(res);
+        }
+
+        [HttpPost("revoke")]
+        public async Task<IActionResult> Revoke([FromBody] RefreshRequest req)
+        {
+            await _auth.RevokeRefreshTokenAsync(req.RefreshToken);
+            return NoContent();
+        }
+    }
+}
+</file>
+
+<file path="Controllers/FichaTrabajadorController.cs">
+using Asistencia.Services.Dtos;
+using Asistencia.Services.Implements;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+
+namespace Asistencia.Api.Controllers
+{
+    [Route("api/[controller]")]
+    [Authorize]
+    [ApiController]
+    public class FichaTrabajadorController : ControllerBase
+    {
+        private readonly IFichaTrabajadorService _service;
+
+        public FichaTrabajadorController(IFichaTrabajadorService service)
+        {
+            _service = service;
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> Crear(CreateTrabajadorDto dto)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            try
+            {
+                var result = await _service.postCrearTrabajador(dto);
+                return CreatedAtAction(nameof(Crear), new { id = result.IdTrabajador }, result);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Conflict(new { message = ex.Message });
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Ocurrió un error interno en el servidor.", details = ex.Message }); // Retorna 500 Internal Server Error
+            }
+        }
+
+        [HttpPut("{id:int}")]
+        public async Task<IActionResult> Update(int id, [FromBody] UpdateTrabajadorDto dto)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            try
+            {
+                var result = await _service.UpdateTrabajadorAsync(id, dto);
+                return Ok(result); // Retorna 200 OK con el objeto actualizado
+            }
+            catch (InvalidOperationException ex) // Para DNI o correo duplicado
+            {
+                return Conflict(new { message = ex.Message }); // Retorna 409 Conflict
+            }
+            catch (KeyNotFoundException ex) // Para IDs no encontrados (trabajador, sucursal, jefe)
+            {
+                return NotFound(new { message = ex.Message }); // Retorna 404 Not Found
+            }
+            catch (Exception ex) // Para cualquier otro error inesperado
+            {
+                return StatusCode(500, new { message = "Ocurrió un error interno en el servidor.", details = ex.Message });
+            }
+        }
+    }
+}
+</file>
+
+<file path="Controllers/HorarioTurnoController.cs">
+using Asistencia.Data.Entities.MarcacionAsistenciaEntites;
+using Asistencia.Services.Implements;
+using Asistencia.Services.Services;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+
+namespace Asistencia.Api.Controllers
+{
+    [ApiController]
+    [Authorize]
+    [Route("api/Rrhh/[controller]")]
+    public class HorarioTurnoController : ControllerBase
+    {
+        private readonly IHorarioTurnoService _horarioTurnoService;
+
+        public HorarioTurnoController(IHorarioTurnoService horarioTurnoService)
+        {
+            _horarioTurnoService = horarioTurnoService;
+        }
+
+        [HttpGet]
+        public async Task<ActionResult<IEnumerable<HorarioTurno>>> GetAllAsync()
+        {
+            var turnos = await _horarioTurnoService.GetAllAsync();
+            return Ok(turnos);
+        }
+
+        [HttpGet("{id:int}")]
+        public async Task<ActionResult<HorarioTurno>> GetTurnoById(int id)
+        {
+            var turno = await _horarioTurnoService.GetByIdAsync(id);
+            if (turno == null) return NotFound($"No se encontro turno.");
+            return Ok(turno);
+        }
+
+        [HttpPost]
+        public async Task<ActionResult<HorarioTurno>> CreateTurno([FromBody] HorarioTurno turno)
+        {
+            if (!ModelState.IsValid) return BadRequest(ModelState);
+
+            await _horarioTurnoService.AddAsync(turno);
+
+            return CreatedAtAction(nameof(GetTurnoById), new { id = turno.Id }, turno);
+        }
+
+        [HttpPut("{id:int}")]
+        public async Task<IActionResult> UpdateTurno(int id, [FromBody] HorarioTurno turno)
+        {
+            if (id != turno.Id) return BadRequest("El ID de la turno en la URL no coincide con el del cuerpo de la solicitud.");
+            if (!ModelState.IsValid) return BadRequest(ModelState);
+
+            try
+            {
+                await _horarioTurnoService.UpdateAsync(id, turno);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ex.Message);
+            }
+
+            return NoContent();
+        }
+    }
+}
+</file>
+
+<file path="Controllers/MarcacionAsistenciaController.cs">
+using Asistencia.Data.Entities.MarcacionAsistenciaEntites;
+using Asistencia.Services.Dtos;
+using Asistencia.Services.Implements;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+
+namespace Asistencia.Api.Controllers
+{
+    [ApiController]
+    [Authorize]
+    [Route("api/Rrhh/[controller]")]
+    public class MarcacionAsistenciaController : ControllerBase
+    {
+        private readonly IMarcacionAsistenciaService _marcacionAsistenciaService;
+
+        public MarcacionAsistenciaController(IMarcacionAsistenciaService marcacionAsistenciaService)
+        {
+            _marcacionAsistenciaService = marcacionAsistenciaService;
+        }
+
+        [HttpGet]
+        public async Task<ActionResult<PagedResult<MarcacionAsistencia>>> GetAll([FromQuery] PaginationDto pagination)
+        {
+            var marcaciones = await _marcacionAsistenciaService.GetAllAsync(pagination);
+            return Ok(marcaciones);
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> Post([FromBody] MarcacionRequest marcacionRequest)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            var response = await _marcacionAsistenciaService.AddMarcacionAsync(marcacionRequest);
+
+            return Ok(response);
+        }
+        // Dentro de AttendanceController.cs
+        [HttpGet("status/{trabajadorId}")]
+        public async Task<IActionResult> GetAttendanceStatus(int trabajadorId)
+        {
+            // Llamada al servicio de estado
+            var status = await _marcacionAsistenciaService.CalculateTimeWorkedAsync(trabajadorId);
+
+            // Lógica para los botones (basada en el DTO devuelto)
+            var isEntryRegistered = status.EntryRegisteredAt.HasValue;
+            var isExitRegistered = status.ExitRegisteredAt.HasValue && status.ExitRegisteredAt.Value > status.EntryRegisteredAt.Value;
+
+            return Ok(new
+            {
+                // Datos para Cards Informativas
+                TimeData = status,
+                // Datos para los Botones
+                PermiteMarcarEntrada = !isEntryRegistered || isExitRegistered, // Permite entrada si no ha marcado O si ya cerró la jornada anterior
+                PermiteMarcarSalida = isEntryRegistered && !isExitRegistered, // Permite salida solo si entró y no ha salido
+
+                // Estado visual del app
+                SalidaPendiente = isEntryRegistered && !isExitRegistered
+            });
+        }
+    }
+}
+</file>
+
+<file path="Controllers/ReporteController.cs">
+using Asistencia.Services.Implements;
+using Asistencia.Services.Services;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
+
+namespace Asistencia.Api.Controllers
+{
+    [Route("api/[controller]")]
+    [Authorize]
+    [ApiController]
+    public class ReporteController : ControllerBase
+    {
+        public readonly IReportesService _reportesService;
+
+        public ReporteController(IReportesService reportesService)
+        {
+            _reportesService = reportesService;
+        }
+
+        //[HttpPost("inasistencias")]
+        //public async Task<IActionResult> GenerarReporteInasistencias([FromBody] FiltroReporteDto request)
+        //{
+        //    var respuesta = await _reportesService.GetInasistencias(request);
+        //    return Ok(respuesta);
+        //}
+
+        //[HttpPost("tardanzas")]
+        //public async Task<IActionResult> GenerarReporteTardanzas([FromBody] FiltroReporteDto request)
+        //{
+        //    var respuesta = await _reportesService.GetTardanzas(request);
+        //    return Ok(respuesta);
+        //}
+
+        //[HttpPost("horas-extra")]
+        //public async Task<IActionResult> GenerarReporteHorasExtra([FromBody] FiltroReporteDto request)
+        //{
+        //    var respuesta = await _reportesService.GetHorasExtra(request);
+        //    return Ok(respuesta);
+        //}
+
+        //[HttpPost("resumen")]
+        //public async Task<IActionResult> GenerarReporteResumen([FromBody] FiltroReporteDto request)
+        //{
+        //    var respuesta = await _reportesService.GetResumen(request);
+        //    return Ok(respuesta);
+        //}
+
+        [HttpGet("inconsistencias")]
+        public async Task<IActionResult> GetInconsistencias()
+        {
+            try
+            {
+                var result = await _reportesService.GetInconsistenciasAsync();
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                // Loggear el error real aquí
+                return StatusCode(500, "Error obteniendo inconsistencias: " + ex.Message);
+            }
+        }
+
+        [HttpGet("resumen")]
+        public async Task<IActionResult> GetResumen(
+            [FromQuery] DateTime fechaInicio,
+            [FromQuery] DateTime fechaFin,
+            [FromQuery] string? dni = null,
+            [FromQuery] string? area = null)
+        {
+            // Validaciones básicas
+            if (fechaInicio > fechaFin)
+                return BadRequest("La fecha de inicio no puede ser mayor a la fecha fin.");
+
+            try
+            {
+                var result = await _reportesService.GetResumenAsistenciaAsync(fechaInicio, fechaFin, dni, area);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, "Error generando reporte: " + ex.Message);
+            }
+        }
+
+        [HttpGet("tardanzas")]
+                public async Task<IActionResult> GetTardanzas(
+            [FromQuery] DateTime fechaInicio,
+            [FromQuery] DateTime fechaFin,
+            [FromQuery] string? area = null)
+        {
+            var resultado = await _reportesService.GetTardanzasAsync(fechaInicio, fechaFin, area);
+            return Ok(resultado);
+        }
+
+        [HttpGet("horas-extras")]
+        public async Task<IActionResult> GetHorasExtras(
+            [FromQuery] DateTime fechaInicio,
+            [FromQuery] DateTime fechaFin,
+            [FromQuery] string? area = null)
+        {
+            var resultado = await _reportesService.GetHorasExtrasAsync(fechaInicio, fechaFin, area);
+            return Ok(resultado);
+        }
+    }
+}
+</file>
+
+<file path="Controllers/SucursalesController.cs">
+using Asistencia.Data.Entities;
+using Asistencia.Data.Entities.MarcacionAsistenciaEntites;
+using Asistencia.Services.Dtos;
+using Asistencia.Services.Implements;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+
+namespace Asistencia.Api.Controllers
+{
+    [ApiController]
+    [Authorize]
+    [Route("api/Rrhh/[controller]")]
+    public class SucursalesController : ControllerBase
+    {
+        private readonly ISucursalCentroService _sucursalService;
+
+        public SucursalesController(ISucursalCentroService sucursalService)
+        {
+            _sucursalService = sucursalService;
+        }
+
+        [HttpGet]
+        public async Task<ActionResult<PagedResult<SucursalCentro>>> GetAllSucursales([FromQuery] PaginationDto pagination)
+        {
+            var sucursales = await _sucursalService.GetAllAsync(pagination);
+            return Ok(sucursales);
+        }
+
+        [HttpGet("{id:int}")]
+        public async Task<ActionResult<SucursalCentro>> GetSucursalById(int id)
+        {
+            var sucursal = await _sucursalService.GetByIdAsync(id);
+            if (sucursal == null) return NotFound($"No se encontró la sucursal con ID {id}.");
+            return Ok(sucursal);
+        }
+
+        [HttpPost]
+        public async Task<ActionResult<SucursalCentro>> CreateSucursal([FromBody] SucursalCentro sucursal)
+        {
+            if (!ModelState.IsValid) return BadRequest(ModelState);
+
+            await _sucursalService.AddAsync(sucursal);
+
+            // Como AddAsync es void, no retorna la nueva sucursal. Usamos el objeto recibido.
+            return CreatedAtAction(nameof(GetSucursalById), new { id = sucursal.Id }, sucursal);
+        }
+
+        [HttpPut("{id:int}")]
+        public async Task<IActionResult> UpdateSucursal(int id, [FromBody] SucursalCentro sucursal)
+        {
+            if (id != sucursal.Id) return BadRequest("El ID de la sucursal en la URL no coincide con el del cuerpo de la solicitud.");
+            if (!ModelState.IsValid) return BadRequest(ModelState);
+
+            try
+            {
+                await _sucursalService.UpdateAsync(id, sucursal);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ex.Message);
+            }
+
+            return NoContent();
+        }
+
+        [HttpDelete("{id:int}")]
+        public async Task<IActionResult> DeleteSucursal(int id)
+        {
+            try
+            {
+                await _sucursalService.DeleteAsync(id);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ex.Message);
+            }
+
+            return NoContent();
+        }
+    }
+}
+</file>
+
+<file path="Controllers/TipoTurnoController.cs">
+using Asistencia.Data.Entities.MarcacionAsistenciaEntites;
+using Asistencia.Services.Dtos;
+using Asistencia.Services.Implements;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+
+namespace Asistencia.Api.Controllers
+{
+    [ApiController]
+    [Authorize]
+    [Route("api/Rrhh/[controller]")]
+    public class TipoTurnoController : ControllerBase
+    {
+        private readonly ITipoTurnoService _tipoTurnoService;
+
+        public TipoTurnoController(ITipoTurnoService tipoTurnoService)
+        {
+            _tipoTurnoService = tipoTurnoService;
+        }
+
+        [HttpGet]
+        public async Task<ActionResult<PagedResult<TipoTurno>>> GetAllAsync([FromQuery] PaginationDto pagination)
+        {
+            var tipoTurnos = await _tipoTurnoService.GetAllAsync(pagination);
+            return Ok(tipoTurnos);
+        }
+    }
+}
+</file>
+
+<file path="Controllers/TrabajadoresController.cs">
+using Asistencia.Data.Entities.MarcacionAsistenciaEntites;
+using Asistencia.Data.Entities.UserEntites;
+using Asistencia.Services.Dtos;
+using Asistencia.Services.Implements;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+
+namespace Asistencia.Api.Controllers
+{
+    [ApiController]
+    [Authorize]
+    [Route("api/Rrhh/[controller]")]
+    public class TrabajadoresController : ControllerBase
+    {
+        private readonly ITrabajadorService _trabajadorService;
+
+        public TrabajadoresController(ITrabajadorService trabajadorService)
+        {
+            _trabajadorService = trabajadorService;
+        }
+
+        // GET: api/Rrhh/Trabajadores
+        [HttpGet]
+        public async Task<ActionResult<IEnumerable<Trabajador>>> GetAllTrabajadores([FromQuery] PaginationDto pagination)
+        {
+            var trabajadores = await _trabajadorService.GetAllAsync(pagination);
+            return Ok(trabajadores);
+        }
+
+        // GET: api/Rrhh/Trabajadores/5
+        [HttpGet("{id}")]
+        public async Task<ActionResult<Trabajador>> GetTrabajadorById(int id)
+        {
+            var trabajador = await _trabajadorService.GetByIdAsync(id);
+
+            if (trabajador == null)
+            {
+                return NotFound($"No se encontró el trabajador con ID {id}.");
+            }
+
+            return Ok(trabajador);
+        }
+
+        // POST: api/Rrhh/Trabajadores
+        [HttpPost]
+        public async Task<ActionResult<Trabajador>> CreateTrabajador([FromBody] TrabajadorDto trabajador)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            await _trabajadorService.AddAsync(trabajador);
+            var nuevoTrabajador = trabajador; // O asigna el objeto correcto si AddAsync retorna el Trabajador creado
+
+            return CreatedAtAction(nameof(GetTrabajadorById), new { id = trabajador.PersonaId }, trabajador);
+        }
+
+        // PUT: api/Rrhh/Trabajadores/5
+        [HttpPut("{id}")]
+        public async Task<IActionResult> UpdateTrabajador(int id, [FromBody] TrabajadorDto trabajador)
+        {
+            if (id != trabajador.PersonaId)
+            {
+                return BadRequest("El ID del trabajador en la URL no coincide con el del cuerpo de la solicitud.");
+            }
+
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            try
+            {
+                await _trabajadorService.UpdateAsync(id, trabajador);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ex.Message);
+            }
+
+            return NoContent();
+        }
+
+        // DELETE: api/Rrhh/Trabajadores/5
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteTrabajador(int id)
+        {
+            try
+            {
+                await _trabajadorService.DeleteAsync(id);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ex.Message);
+            }
+
+            return NoContent();
+        }
+    }
+}
+</file>
+
+<file path="Controllers/TurnosController.cs">
+using Asistencia.Data.Entities.MarcacionAsistenciaEntites;
+using Asistencia.Services.Dtos;
+using Asistencia.Services.Implements;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+
+namespace Asistencia.Api.Controllers
+{
+    [ApiController]
+    [Authorize]
+    [Route("api/Rrhh/[controller]")]
+    public class TurnosController : ControllerBase
+    {
+        private readonly ITurnoService _turnoService;
+
+        public TurnosController(ITurnoService turnoService) {
+            _turnoService = turnoService;
+        }
+
+        [HttpGet]
+        public async Task<ActionResult<PagedResult<Turno>>> GetAllAsync([FromQuery] PaginationDto pagination)
+        {
+            var turnos = await _turnoService.GetAllAsync(pagination);
+            return Ok(turnos);
+        }
+
+        [HttpGet("{id:int}")]
+        public async Task<ActionResult<Turno>> GetTurnoById(int id)
+        {
+            var turno = await _turnoService.GetByIdAsync(id);
+            if (turno == null) return NotFound($"No se encontro turno.");
+            return Ok(turno);
+        }
+
+        [HttpPost]
+        public async Task<ActionResult<Turno>> CreateTurno([FromBody] Turno turno)
+        {
+            if (!ModelState.IsValid) return BadRequest(ModelState);
+
+            await _turnoService.AddAsync(turno);
+
+            return CreatedAtAction(nameof(GetTurnoById), new { id = turno.Id }, turno);
+        }
+
+        [HttpPut("{id:int}")]
+        public async Task<IActionResult> UpdateTurno(int id, [FromBody] Turno turno)
+        {
+            if (id != turno.Id) return BadRequest("El ID de la turno en la URL no coincide con el del cuerpo de la solicitud.");
+            if (!ModelState.IsValid) return BadRequest(ModelState);
+
+            try
+            {
+                await _turnoService.UpdateAsync(id, turno);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ex.Message);
+            }
+
+            return NoContent();
+        }
+    }
+}
+</file>
+
+<file path="Controllers/WeatherForecastController.cs">
+using Microsoft.AspNetCore.Mvc;
+
+namespace Asistencia.Api.Controllers
+{
+    [ApiController]
+    [Route("[controller]")]
+    public class WeatherForecastController : ControllerBase
+    {
+        private static readonly string[] Summaries = new[]
+        {
+            "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
+        };
+
+        private readonly ILogger<WeatherForecastController> _logger;
+
+        public WeatherForecastController(ILogger<WeatherForecastController> logger)
+        {
+            _logger = logger;
+        }
+
+        [HttpGet(Name = "GetWeatherForecast")]
+        public IEnumerable<WeatherForecast> Get()
+        {
+            return Enumerable.Range(1, 5).Select(index => new WeatherForecast
+            {
+                Date = DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
+                TemperatureC = Random.Shared.Next(-20, 55),
+                Summary = Summaries[Random.Shared.Next(Summaries.Length)]
+            })
+            .ToArray();
+        }
+    }
+}
+</file>
+
+<file path="Properties/launchSettings.json">
+{
+  "$schema": "http://json.schemastore.org/launchsettings.json",
+  "iisSettings": {
+    "windowsAuthentication": false,
+    "anonymousAuthentication": true,
+    "iisExpress": {
+      "applicationUrl": "http://localhost:35635",
+      "sslPort": 44369
+    }
+  },
+  "profiles": {
+    "http": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": true,
+      "launchUrl": "swagger",
+      "applicationUrl": "http://localhost:5118",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    },
+    "https": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": true,
+      "launchUrl": "swagger",
+      "applicationUrl": "https://localhost:7209;http://localhost:5118",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    },
+    "IIS Express": {
+      "commandName": "IISExpress",
+      "launchBrowser": true,
+      "launchUrl": "swagger",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    }
+  }
+}
+</file>
+
+<file path="repomix.config.json">
+{
+  "output": {
+    "filePath": "contexto_dotnet.xml",
+    "style": "xml",
+    "headerText": "Este es un proyecto en .NET Core. Analiza la estructura."
+  },
+  "include": [
+    "**/*.cs",
+    "**/*.csproj",
+    "**/*.sln",
+    "**/*.cshtml",
+    "**/*.json",
+    "**/*.sql",
+    "Dockerfile"
+  ],
+  "ignore": {
+    "useGitignore": true,
+    "useDefaultPatterns": true,
+    "customPatterns": [
+      "**/bin/**",
+      "**/obj/**",
+      "**/.vs/**",
+      "**/.git/**",
+      "**/wwwroot/lib/**",
+      "**/Migrations/**",
+      "**/appsettings.Development.json"
+    ]
+  }
+}
+</file>
+
+<file path="WeatherForecast.cs">
+namespace Asistencia.Api
+{
+    public class WeatherForecast
+    {
+        public DateOnly Date { get; set; }
+
+        public int TemperatureC { get; set; }
+
+        public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
+
+        public string? Summary { get; set; }
+    }
+}
+</file>
+
+</files>
