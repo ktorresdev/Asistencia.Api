@@ -18,7 +18,7 @@ namespace Asistencia.Data.Entities.MarcacionAsistenciaEntites
         public decimal? Longitud { get; set; }
         public string? FotoUrl { get; set; }
         public bool? UbicacionValida { get; set; }
-        //public string TokenValidacion { get; set; }
+        public string TokenValidacion { get; set; }
 
         public virtual Trabajador Trabajador { get; set; } = null!;
     }

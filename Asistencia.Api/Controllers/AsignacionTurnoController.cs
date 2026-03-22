@@ -20,14 +20,14 @@ namespace Asistencia.Api.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<PagedResult<AsignacionTurno>>> GetAllAsync([FromQuery] PaginationDto pagination)
+        public async Task<ActionResult<PagedResult<AsignacionTurnoResponseDto>>> GetAllAsync([FromQuery] PaginationDto pagination)
         {
             var asignaciones = await _asignacionTurnoService.GetAllAsync(pagination);
             return Ok(asignaciones);
         }
 
         [HttpGet("{id:int}", Name = "GetByIdAsync")]
-        public async Task<ActionResult<AsignacionTurno>> GetByIdAsync(int id)
+        public async Task<ActionResult<AsignacionTurnoResponseDto>> GetByIdAsync(int id)
         {
             var asignacion = await _asignacionTurnoService.GetByIdAsync(id);
             if (asignacion == null)
@@ -38,33 +38,60 @@ namespace Asistencia.Api.Controllers
         }
 
         [HttpPost]
-        [Authorize(Roles = "Admin")]
-        public async Task<ActionResult<AsignacionTurno>> CreateAsync([FromBody] AsignacionTurno createDto)
+        [Authorize(Roles = "ADMIN,SUPERADMIN")]
+        public async Task<ActionResult<AsignacionTurno>> CreateAsync([FromBody] AsignacionTurnoCreateDto createDto)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
 
-            var nuevaAsignacion = await _asignacionTurnoService.AddAsync(createDto);
-            if (nuevaAsignacion == null) return StatusCode(500, "Error al crear la asignación.");
-            // Usamos CreatedAtAction para devolver un 201 con la URL del nuevo recurso
-            return CreatedAtAction(nameof(GetByIdAsync), new { id = nuevaAsignacion.Id }, nuevaAsignacion);
+            try
+            {
+                var nuevaAsignacion = await _asignacionTurnoService.AddAsync(createDto);
+                return CreatedAtAction(nameof(GetByIdAsync), new { id = nuevaAsignacion.Id }, nuevaAsignacion);
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ex.Message);
+            }
         }
 
         [HttpPut("{id:int}")]
-        [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> UpdateAsync(int id, [FromBody] AsignacionTurno updateDto)
+        [Authorize(Roles = "ADMIN,SUPERADMIN")]
+        public async Task<IActionResult> UpdateAsync(int id, [FromBody] AsignacionTurnoUpdateDto updateDto)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
 
-            await _asignacionTurnoService.UpdateAsync(id, updateDto);
-            return NoContent();
+            try
+            {
+                await _asignacionTurnoService.UpdateAsync(id, updateDto);
+                return NoContent();
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ex.Message);
+            }
         }
 
         [HttpDelete("{id:int}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "ADMIN,SUPERADMIN")]
         public async Task<IActionResult> DeleteAsync(int id)
         {
-            await _asignacionTurnoService.DeleteAsync(id);
-            return NoContent();
+            try
+            {
+                await _asignacionTurnoService.DeleteAsync(id);
+                return NoContent();
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ex.Message);
+            }
         }
     }
 }

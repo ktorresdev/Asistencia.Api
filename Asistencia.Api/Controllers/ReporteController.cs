@@ -9,7 +9,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace Asistencia.Api.Controllers
 {
     [Route("api/[controller]")]
-    [Authorize(Roles = "ADMIN,SUPERADMIN")]
+    [Authorize(Roles = "ADMIN,SUPERADMIN,SUPERVISOR")]
     [ApiController]
     public class ReporteController : ControllerBase
     {
@@ -156,7 +156,7 @@ namespace Asistencia.Api.Controllers
         {
             var rol = (User.FindFirst(ClaimTypes.Role)?.Value ?? string.Empty).Trim().ToUpperInvariant();
 
-            if (rol == "SUPERADMIN")
+            if (rol == "SUPERADMIN" || rol == "SUPERVISOR")
             {
                 return (true, string.IsNullOrWhiteSpace(areaSolicitada) ? null : areaSolicitada.Trim());
             }

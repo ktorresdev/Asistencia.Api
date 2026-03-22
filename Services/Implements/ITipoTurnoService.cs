@@ -13,8 +13,8 @@ namespace Asistencia.Services.Implements
     {
         Task<PagedResult<TipoTurno>> GetAllAsync(PaginationDto pagination);
         Task<TipoTurno?> GetByIdAsync(int id);
-        Task AddAsync(TipoTurno tipoTurno);
-        Task UpdateAsync(int id, TipoTurno tipoTurno);
+        Task<int> AddAsync(TipoTurnoCreateDto request);
+        Task UpdateAsync(int id, TipoTurnoUpdateDto request);
         Task DeleteAsync(int id);
     }
 }

@@ -1,0 +1,358 @@
+### 📌 Ejemplos - API Asignar Programación Semanal
+
+## Asignar programación semanal completa (7 días)
+
+POST https://127.0.0.1:7209/api/Rrhh/ProgramacionSemanal
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+Content-Type: application/json
+
+{
+  "fechaInicio": "2026-03-16",
+  "fechaFin": "2026-03-22",
+  "programaciones": [
+    {
+      "trabajadorId": 1,
+      "fecha": "2026-03-16",
+      "idHorarioTurno": 5,
+      "esDescanso": true,
+      "esDiaBoleta": false,
+      "esVacaciones": false
+    },
+    {
+      "trabajadorId": 1,
+      "fecha": "2026-03-17",
+      "idHorarioTurno": 5,
+      "esDescanso": false,
+      "esDiaBoleta": false,
+      "esVacaciones": false
+    },
+    {
+      "trabajadorId": 1,
+      "fecha": "2026-03-18",
+      "idHorarioTurno": 5,
+      "esDescanso": false,
+      "esDiaBoleta": false,
+      "esVacaciones": false
+    },
+    {
+      "trabajadorId": 1,
+      "fecha": "2026-03-19",
+      "idHorarioTurno": 5,
+      "esDescanso": false,
+      "esDiaBoleta": false,
+      "esVacaciones": false
+    },
+    {
+      "trabajadorId": 1,
+      "fecha": "2026-03-20",
+      "idHorarioTurno": 5,
+      "esDescanso": false,
+      "esDiaBoleta": false,
+      "esVacaciones": false
+    },
+    {
+      "trabajadorId": 1,
+      "fecha": "2026-03-21",
+      "idHorarioTurno": 5,
+      "esDescanso": false,
+      "esDiaBoleta": false,
+      "esVacaciones": false
+    },
+    {
+      "trabajadorId": 1,
+      "fecha": "2026-03-22",
+      "idHorarioTurno": 5,
+      "esDescanso": false,
+      "esDiaBoleta": true,
+      "esVacaciones": false
+    }
+  ]
+}
+
+### Respuesta esperada (200 OK)
+{
+  "ok": true,
+  "mensaje": "Programación semanal grabada",
+  "fechaInicio": "2026-03-16",
+  "fechaFin": "2026-03-22",
+  "registrosGrabados": 7
+}
+
+---
+
+## Asignar para múltiples trabajadores
+
+POST https://127.0.0.1:7209/api/Rrhh/ProgramacionSemanal
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+Content-Type: application/json
+
+{
+  "fechaInicio": "2026-03-16",
+  "fechaFin": "2026-03-22",
+  "programaciones": [
+    {
+      "trabajadorId": 1,
+      "fecha": "2026-03-16",
+      "idHorarioTurno": 5,
+      "esDescanso": true
+    },
+    {
+      "trabajadorId": 1,
+      "fecha": "2026-03-17",
+      "idHorarioTurno": 5
+    },
+    {
+      "trabajadorId": 1,
+      "fecha": "2026-03-18",
+      "idHorarioTurno": 5
+    },
+    {
+      "trabajadorId": 1,
+      "fecha": "2026-03-19",
+      "idHorarioTurno": 5
+    },
+    {
+      "trabajadorId": 1,
+      "fecha": "2026-03-20",
+      "idHorarioTurno": 5
+    },
+    {
+      "trabajadorId": 1,
+      "fecha": "2026-03-21",
+      "idHorarioTurno": 5
+    },
+    {
+      "trabajadorId": 1,
+      "fecha": "2026-03-22",
+      "idHorarioTurno": 5
+    },
+    {
+      "trabajadorId": 2,
+      "fecha": "2026-03-16",
+      "idHorarioTurno": 3
+    },
+    {
+      "trabajadorId": 2,
+      "fecha": "2026-03-17",
+      "idHorarioTurno": 3,
+      "esDescanso": true
+    },
+    {
+      "trabajadorId": 2,
+      "fecha": "2026-03-18",
+      "idHorarioTurno": 3
+    },
+    {
+      "trabajadorId": 2,
+      "fecha": "2026-03-19",
+      "idHorarioTurno": 3
+    },
+    {
+      "trabajadorId": 2,
+      "fecha": "2026-03-20",
+      "idHorarioTurno": 3
+    },
+    {
+      "trabajadorId": 2,
+      "fecha": "2026-03-21",
+      "idHorarioTurno": 3
+    },
+    {
+      "trabajadorId": 2,
+      "fecha": "2026-03-22",
+      "idHorarioTurno": 3
+    }
+  ]
+}
+
+### Respuesta esperada (200 OK)
+{
+  "ok": true,
+  "mensaje": "Programación semanal grabada",
+  "fechaInicio": "2026-03-16",
+  "fechaFin": "2026-03-22",
+  "registrosGrabados": 14
+}
+
+---
+
+## Con vacaciones y boletas
+
+POST https://127.0.0.1:7209/api/Rrhh/ProgramacionSemanal
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+Content-Type: application/json
+
+{
+  "fechaInicio": "2026-03-16",
+  "fechaFin": "2026-03-22",
+  "programaciones": [
+    {
+      "trabajadorId": 3,
+      "fecha": "2026-03-16",
+      "idHorarioTurno": 1,
+      "esVacaciones": true
+    },
+    {
+      "trabajadorId": 3,
+      "fecha": "2026-03-17",
+      "idHorarioTurno": 1,
+      "esVacaciones": true
+    },
+    {
+      "trabajadorId": 3,
+      "fecha": "2026-03-18",
+      "idHorarioTurno": 1
+    },
+    {
+      "trabajadorId": 3,
+      "fecha": "2026-03-19",
+      "idHorarioTurno": 1
+    },
+    {
+      "trabajadorId": 3,
+      "fecha": "2026-03-20",
+      "idHorarioTurno": 1,
+      "esDescanso": true
+    },
+    {
+      "trabajadorId": 3,
+      "fecha": "2026-03-21",
+      "idHorarioTurno": 1,
+      "esDiaBoleta": true
+    },
+    {
+      "trabajadorId": 3,
+      "fecha": "2026-03-22",
+      "idHorarioTurno": 1
+    }
+  ]
+}
+
+### Respuesta esperada (200 OK)
+{
+  "ok": true,
+  "mensaje": "Programación semanal grabada",
+  "fechaInicio": "2026-03-16",
+  "fechaFin": "2026-03-22",
+  "registrosGrabados": 7
+}
+
+---
+
+## Error: Fechas inválidas
+
+POST https://127.0.0.1:7209/api/Rrhh/ProgramacionSemanal
+Authorization: Bearer ...
+Content-Type: application/json
+
+{
+  "fechaInicio": "2026-03-22",
+  "fechaFin": "2026-03-16",
+  "programaciones": []
+}
+
+### Respuesta (400 Bad Request)
+{
+  "message": "FechaInicio no puede ser mayor a FechaFin"
+}
+
+---
+
+## Error: Sin programaciones
+
+POST https://127.0.0.1:7209/api/Rrhh/ProgramacionSemanal
+Authorization: Bearer ...
+Content-Type: application/json
+
+{
+  "fechaInicio": "2026-03-16",
+  "fechaFin": "2026-03-22",
+  "programaciones": []
+}
+
+### Respuesta (400 Bad Request)
+{
+  "message": "Debe enviar al menos una programación"
+}
+
+---
+
+## Error: Trabajador no existe
+
+POST https://127.0.0.1:7209/api/Rrhh/ProgramacionSemanal
+Authorization: Bearer ...
+Content-Type: application/json
+
+{
+  "fechaInicio": "2026-03-16",
+  "fechaFin": "2026-03-22",
+  "programaciones": [
+    {
+      "trabajadorId": 99999,
+      "fecha": "2026-03-16",
+      "idHorarioTurno": 5
+    }
+  ]
+}
+
+### Respuesta (404 Not Found)
+{
+  "message": "Uno o más trabajadores no existen"
+}
+
+---
+
+## Error: Horario no existe
+
+POST https://127.0.0.1:7209/api/Rrhh/ProgramacionSemanal
+Authorization: Bearer ...
+Content-Type: application/json
+
+{
+  "fechaInicio": "2026-03-16",
+  "fechaFin": "2026-03-22",
+  "programaciones": [
+    {
+      "trabajadorId": 1,
+      "fecha": "2026-03-16",
+      "idHorarioTurno": 99999
+    }
+  ]
+}
+
+### Respuesta (404 Not Found)
+{
+  "message": "Uno o más horarios no existen"
+}
+
+---
+
+## Recargar la misma semana (actualiza)
+
+POST https://127.0.0.1:7209/api/Rrhh/ProgramacionSemanal
+Authorization: Bearer ...
+Content-Type: application/json
+
+{
+  "fechaInicio": "2026-03-16",
+  "fechaFin": "2026-03-22",
+  "programaciones": [
+    {
+      "trabajadorId": 1,
+      "fecha": "2026-03-16",
+      "idHorarioTurno": 3,
+      "esDescanso": false
+    },
+    {
+      "trabajadorId": 1,
+      "fecha": "2026-03-17",
+      "idHorarioTurno": 3
+    },
+    ...resto de días...
+  ]
+}
+
+### Resultado:
+- Elimina los 7 registros anteriores del Trabajador 1 (2026-03-16 a 2026-03-22)
+- Inserta los 7 nuevos registros con idHorarioTurno = 3
+- Total: 7 registros (sin duplicados)

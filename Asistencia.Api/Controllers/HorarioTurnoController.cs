@@ -1,4 +1,5 @@
 ﻿using Asistencia.Data.Entities.MarcacionAsistenciaEntites;
+using Asistencia.Services.Dtos;
 using Asistencia.Services.Implements;
 using Asistencia.Services.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -35,7 +36,7 @@ namespace Asistencia.Api.Controllers
         }
 
         [HttpPost]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "ADMIN,SUPERADMIN")]
         public async Task<ActionResult<HorarioTurno>> CreateTurno([FromBody] HorarioTurnoRequest turno)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
@@ -46,15 +47,23 @@ namespace Asistencia.Api.Controllers
         }
 
         [HttpPut("{id:int}")]
-        [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> UpdateTurno(int id, [FromBody] HorarioTurno turno)
+        [Authorize(Roles = "ADMIN,SUPERADMIN")]
+        public async Task<IActionResult> UpdateTurno(int id, [FromBody] HorarioTurnoUpdateDto request)
         {
-            if (id != turno.Id) return BadRequest("El ID de la turno en la URL no coincide con el del cuerpo de la solicitud.");
+            if (id != request.Id) return BadRequest("El ID del horario en la URL no coincide con el del cuerpo de la solicitud.");
             if (!ModelState.IsValid) return BadRequest(ModelState);
 
             try
             {
-                await _horarioTurnoService.UpdateAsync(id, turno);
+                var horarioTurno = new HorarioTurno
+                {
+                    Id = request.Id,
+                    TurnoId = request.TurnoId,
+                    NombreHorario = request.NombreHorario,
+                    EsActivo = request.EsActivo
+                };
+
+                await _horarioTurnoService.UpdateAsync(id, horarioTurno);
             }
             catch (KeyNotFoundException ex)
             {

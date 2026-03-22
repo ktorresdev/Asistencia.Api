@@ -296,7 +296,7 @@ namespace Asistencia.Services.Services
             if (asignaciones == null) return null;
 
             // 2. Encontrar la asignación activa para la fecha dada
-            var asignacionActiva = asignaciones.FirstOrDefault(a => a != null && a.FechaInicioVigencia.Date <= fecha.Date && (a.FechaFinVigencia == null || a.FechaFinVigencia.Value.Date >= fecha.Date));
+            var asignacionActiva = asignaciones.FirstOrDefault(a => a != null && a.FechaInicioVigencia <= DateOnly.FromDateTime(fecha.Date) && (a.FechaFinVigencia == null || a.FechaFinVigencia.Value >= DateOnly.FromDateTime(fecha.Date)));
             
             // 3. Validar la asignación y sus propiedades anidadas de forma segura
             if (asignacionActiva?.Turno?.HorariosTurno == null) return null!;

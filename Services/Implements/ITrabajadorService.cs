@@ -11,7 +11,7 @@ namespace Asistencia.Services.Implements
 {
     public interface ITrabajadorService
     {
-        Task<PagedResult<Trabajador>> GetAllAsync(PaginationDto pagination);
+        Task<PagedResult<Trabajador>> GetAllAsync(PaginationDto pagination, string? search = null);
         Task<Trabajador?> GetByIdAsync(int id);
         Task AddAsync(TrabajadorDto trabajadorDto);
         Task UpdateAsync(int id, TrabajadorDto trabajadorDto);

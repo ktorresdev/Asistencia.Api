@@ -29,6 +29,15 @@ namespace Asistencia.Data.Entities.UserEntites
         [Column("revoked")]
         public bool Revoked { get; set; } = false;
 
+        [Column("expires_at")]
+        public DateTime? ExpiresAt { get; set; }
+
+        [Column("last_used_at")]
+        public DateTime? LastUsedAt { get; set; }
+
+        [Column("revoked_at")]
+        public DateTime? RevokedAt { get; set; }
+
         [ForeignKey(nameof(UserId))]
         public virtual User User { get; set; } = null!;
     }

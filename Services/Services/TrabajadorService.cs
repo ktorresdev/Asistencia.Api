@@ -21,9 +21,17 @@ namespace Asistencia.Services.Services
             _context = context;
         }
 
-        public async Task<PagedResult<Trabajador>> GetAllAsync(PaginationDto paginationDto)
+        public async Task<PagedResult<Trabajador>> GetAllAsync(PaginationDto paginationDto, string? search = null)
         {
             var query = _context.Trabajadores.AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var searchLower = search.ToLower();
+                query = query.Where(t =>
+                    t.Persona.ApellidosNombres.ToLower().Contains(searchLower) ||
+                    t.Persona.Dni.Contains(search));
+            }
 
             var totalCount = await query.CountAsync();
 

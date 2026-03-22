@@ -91,6 +91,7 @@ namespace Asistencia.Api.AuthHandlers
             return role?.Trim().ToUpperInvariant() switch
             {
                 "SUPERADMIN" => "SUPERADMIN",
+                "SUPERVISOR" => "SUPERVISOR",
                 "ADMIN" => "ADMIN",
                 "TRABAJADOR" => "TRABAJADOR",
                 "EMPLOYEE" => "TRABAJADOR",

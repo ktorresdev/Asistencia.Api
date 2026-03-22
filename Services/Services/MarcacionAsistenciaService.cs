@@ -3,9 +3,10 @@ using Asistencia.Data.Entities.MarcacionAsistenciaEntites;
 using Asistencia.Services.Dtos;
 using Asistencia.Services.Implements;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Http;
+using System.Security.Claims;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System;
 using System.Threading.Tasks;
 
@@ -14,11 +15,24 @@ namespace Asistencia.Services.Services
     public class MarcacionAsistenciaService : IMarcacionAsistenciaService
     {
         private readonly MarcacionAsistenciaDbContext _context;
+        private readonly IHttpContextAccessor _httpContextAccessor;
+
+        // Tolerancia de ventana de marcación: 2 horas antes y después del turno
         private static readonly TimeSpan EarlyWindowTolerance = TimeSpan.FromHours(2);
         private static readonly TimeSpan LateWindowTolerance = TimeSpan.FromHours(2);
+
+        // Horario por defecto si no hay ninguna configuración
         private static readonly TimeSpan DefaultStartTime = TimeSpan.FromHours(8);
         private static readonly TimeSpan DefaultEndTime = TimeSpan.FromHours(18).Add(TimeSpan.FromMinutes(30));
 
+        // ══════════════════════════════════════════════════════════════
+        // CLASES INTERNAS
+        // ══════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// Resultado de resolver el contexto de horario para un trabajador en un momento dado.
+        /// FuenteHorario indica de dónde se obtuvo el horario (útil para debug).
+        /// </summary>
         private sealed class ShiftContext
         {
             public bool HasAssignedShift { get; init; }
@@ -28,71 +42,198 @@ namespace Asistencia.Services.Services
             public DateTime? ScheduledEnd { get; init; }
             public DateTime? WindowStart { get; init; }
             public DateTime? WindowEnd { get; init; }
+
+            /// <summary>
+            /// Indica de dónde se resolvió el horario:
+            /// PTS              → PROGRAMACION_TURNOS_SEMANAL (rotativo con PTS cargada)
+            /// PTS_FALLBACK     → PTS existe pero fuera de ventana, se usa como base
+            /// ASIGNACION_BASE  → ASIGNACIONES_TURNO (fijo o rotativo sin PTS)
+            /// ASIGNACION_FALLBACK → ASIGNACIONES_TURNO fuera de ventana, usado como base
+            /// DEFAULT          → Horario genérico 08:00-18:30
+            /// SIN_ASIGNACION   → No tiene turno asignado
+            /// </summary>
+            public string FuenteHorario { get; init; } = "NINGUNA";
         }
 
-        public MarcacionAsistenciaService(MarcacionAsistenciaDbContext context)
+        private sealed class SucursalGeofenceDto
+        {
+            public int IdSucursal { get; set; }
+            public string? NombreSucursal { get; set; }
+            public decimal? LatitudCentro { get; set; }
+            public decimal? LongitudCentro { get; set; }
+            public int? PerimetroM { get; set; }
+        }
+
+        // ══════════════════════════════════════════════════════════════
+        // CONSTRUCTOR
+        // ══════════════════════════════════════════════════════════════
+
+        public MarcacionAsistenciaService(
+            MarcacionAsistenciaDbContext context,
+            IHttpContextAccessor httpContextAccessor)
         {
             _context = context;
+            _httpContextAccessor = httpContextAccessor;
         }
 
-        private (DateTime scheduledStart, DateTime scheduledEnd) BuildScheduledRange(HorarioDetalle detalle, DateTime baseDate)
+        // ══════════════════════════════════════════════════════════════
+        // HELPERS DE RANGO HORARIO
+        // ══════════════════════════════════════════════════════════════
+
+        private (DateTime scheduledStart, DateTime scheduledEnd) BuildScheduledRange(
+            HorarioDetalle detalle, DateTime baseDate)
         {
             var isOvernight = detalle.SalidaDiaSiguiente || detalle.HoraFin < detalle.HoraInicio;
             var scheduledStart = baseDate.Date.Add(detalle.HoraInicio);
             var scheduledEnd = isOvernight
                 ? baseDate.Date.AddDays(1).Add(detalle.HoraFin)
                 : baseDate.Date.Add(detalle.HoraFin);
-
             return (scheduledStart, scheduledEnd);
         }
 
-        private (DateTime scheduledStart, DateTime scheduledEnd) BuildScheduledRangeFromMatchedWindow(HorarioDetalle detalle, DateTime now)
+        private (DateTime scheduledStart, DateTime scheduledEnd) BuildScheduledRangeFromMatchedWindow(
+            HorarioDetalle detalle, DateTime now)
         {
             var isOvernight = detalle.SalidaDiaSiguiente || detalle.HoraFin < detalle.HoraInicio;
+            // Si es turno noche y ya pasó medianoche, la base fue ayer
             var baseDate = (isOvernight && now.TimeOfDay <= detalle.HoraFin)
                 ? now.Date.AddDays(-1)
                 : now.Date;
-
             return BuildScheduledRange(detalle, baseDate);
         }
 
-        private async Task<ShiftContext> ResolveShiftContextAsync(int trabajadorId, DateTime now, bool includeTodayFallback, bool includeDefaultFallback)
-        {
-            var today = now.Date;
+        // ══════════════════════════════════════════════════════════════
+        // RESOLVER CONTEXTO DE HORARIO
+        // Prioridad: PTS (por día) → ASIGNACION_TURNO (base) → DEFAULT
+        // ══════════════════════════════════════════════════════════════
 
+        private async Task<ShiftContext> ResolveShiftContextAsync(
+            int trabajadorId,
+            DateTime now,
+            bool includeTodayFallback,
+            bool includeDefaultFallback)
+        {
+            // Extraer fechas a variables locales para que EF Core pueda parametrizarlas
+            // correctamente en SQL. EF no puede traducir .Date dentro del lambda.
+            var hoy = now.Date;               // DateTime (sin hora)
+            var hoyDateOnly = DateOnly.FromDateTime(hoy); // para PTS
+
+            // ── PASO 1: PROGRAMACION_TURNOS_SEMANAL ─────────────────────
+            var pts = await _context.ProgramacionTurnosSemanal
+                .Include(p => p.HorarioTurno)
+                    .ThenInclude(ht => ht!.HorariosDetalle)
+                .FirstOrDefaultAsync(p =>
+                    p.TrabajadorId == trabajadorId &&
+                    p.Fecha == hoyDateOnly &&
+                    p.EsDescanso != true &&
+                    p.EsDiaBoleta != true &&
+                    p.EsVacaciones != true &&
+                    p.IdHorarioTurno != null);
+
+            if (pts?.HorarioTurno != null)
+            {
+                var detallesPts = pts.HorarioTurno.HorariosDetalle;
+                if (detallesPts != null && detallesPts.Any())
+                {
+                    // Intentar hacer match de ventana con cada detalle del HorarioTurno del día
+                    foreach (var hd in detallesPts)
+                    {
+                        if (TryMatchHorarioDetalleWindow(
+                                hd, now,
+                                EarlyWindowTolerance, LateWindowTolerance,
+                                out var ws, out var we))
+                        {
+                            var range = BuildScheduledRangeFromMatchedWindow(hd, now);
+                            return new ShiftContext
+                            {
+                                HasAssignedShift = true,
+                                HasActiveSchedule = true,
+                                ScheduleDetail = hd,
+                                ScheduledStart = range.scheduledStart,
+                                ScheduledEnd = range.scheduledEnd,
+                                WindowStart = ws,
+                                WindowEnd = we,
+                                FuenteHorario = "PTS"
+                            };
+                        }
+                    }
+
+                    // PTS existe pero la hora actual está fuera de ventana.
+                    // Usar el detalle de PTS como base si se permite fallback.
+                    if (includeTodayFallback)
+                    {
+                        // Para rotativos los HorariosDetalle del sub-horario suelen
+                        // tener un solo registro o uno por día de semana.
+                        var detalleBase = detallesPts
+                            .FirstOrDefault(hd => IsDiaSemanaMatch(hd.DiaSemana, now.Date))
+                            ?? detallesPts.First();
+
+                        var range = BuildScheduledRange(detalleBase, now.Date);
+                        return new ShiftContext
+                        {
+                            HasAssignedShift = true,
+                            HasActiveSchedule = true,
+                            ScheduleDetail = detalleBase,
+                            ScheduledStart = range.scheduledStart,
+                            ScheduledEnd = range.scheduledEnd,
+                            WindowStart = range.scheduledStart.Subtract(EarlyWindowTolerance),
+                            WindowEnd = range.scheduledEnd.Add(LateWindowTolerance),
+                            FuenteHorario = "PTS_FALLBACK"
+                        };
+                    }
+                }
+            }
+
+            // ── PASO 2: ASIGNACIONES_TURNO base ─────────────────────────
+            // Aplica cuando:
+            //   - FIJOS que no tienen PTS explícita (su horario es siempre el mismo)
+            //   - ROTATIVOS cuya semana aún no fue programada en PTS
             var asignacion = await _context.AsignacionesTurno
+                .Include(a => a.HorarioTurno)
+                    .ThenInclude(ht => ht!.HorariosDetalle)
                 .Include(a => a.Turno)
                     .ThenInclude(t => t!.HorariosTurno!)
                         .ThenInclude(ht => ht.HorariosDetalle)
                 .FirstOrDefaultAsync(a =>
                     a.TrabajadorId == trabajadorId &&
-                    a.FechaInicioVigencia.Date <= now.Date &&
-                    (a.FechaFinVigencia == null || a.FechaFinVigencia.Value.Date >= now.Date) &&
+                    a.FechaInicioVigencia <= hoyDateOnly &&
+                    (a.FechaFinVigencia == null || a.FechaFinVigencia >= hoyDateOnly) &&
                     a.EsVigente == true);
 
-            var turno = asignacion?.Turno;
-            if (turno == null)
+            if (asignacion == null)
             {
                 return new ShiftContext
                 {
                     HasAssignedShift = false,
-                    HasActiveSchedule = false
+                    HasActiveSchedule = false,
+                    FuenteHorario = "SIN_ASIGNACION"
                 };
             }
 
-            var horarioTurno = turno.HorariosTurno?.FirstOrDefault(ht => ht.EsActivo == true);
-            if (horarioTurno == null || horarioTurno.HorariosDetalle == null || !horarioTurno.HorariosDetalle.Any())
+            // Obtener el HorarioTurno correcto:
+            // Primero usar el HorarioTurnoId directo de la asignación (más específico),
+            // si no hay, usar el primero activo del turno.
+            var horarioTurnoBase = asignacion.HorarioTurno    // nav directo por HorarioTurnoId
+                ?? asignacion.Turno?.HorariosTurno
+                    ?.FirstOrDefault(ht => ht.EsActivo == true);
+
+            if (horarioTurnoBase?.HorariosDetalle == null || !horarioTurnoBase.HorariosDetalle.Any())
             {
                 return new ShiftContext
                 {
                     HasAssignedShift = true,
-                    HasActiveSchedule = false
+                    HasActiveSchedule = false,
+                    FuenteHorario = "ASIGNACION_SIN_DETALLE"
                 };
             }
 
-            foreach (var detalle in horarioTurno.HorariosDetalle)
+            // Intentar match de ventana con los detalles del horario base
+            foreach (var detalle in horarioTurnoBase.HorariosDetalle)
             {
-                if (TryMatchHorarioDetalleWindow(detalle, now, EarlyWindowTolerance, LateWindowTolerance, out var windowStart, out var windowEnd))
+                if (TryMatchHorarioDetalleWindow(
+                        detalle, now,
+                        EarlyWindowTolerance, LateWindowTolerance,
+                        out var windowStart, out var windowEnd))
                 {
                     var scheduledRange = BuildScheduledRangeFromMatchedWindow(detalle, now);
                     return new ShiftContext
@@ -103,17 +244,20 @@ namespace Asistencia.Services.Services
                         ScheduledStart = scheduledRange.scheduledStart,
                         ScheduledEnd = scheduledRange.scheduledEnd,
                         WindowStart = windowStart,
-                        WindowEnd = windowEnd
+                        WindowEnd = windowEnd,
+                        FuenteHorario = "ASIGNACION_BASE"
                     };
                 }
             }
 
+            // Fuera de ventana pero con fallback → usar el detalle del día
             if (includeTodayFallback)
             {
-                var detalleHoy = horarioTurno.HorariosDetalle.FirstOrDefault(hd => IsDiaSemanaMatch(hd.DiaSemana, today));
+                var detalleHoy = horarioTurnoBase.HorariosDetalle
+                    .FirstOrDefault(hd => IsDiaSemanaMatch(hd.DiaSemana, now.Date));
                 if (detalleHoy != null)
                 {
-                    var scheduledRange = BuildScheduledRange(detalleHoy, today);
+                    var scheduledRange = BuildScheduledRange(detalleHoy, now.Date);
                     return new ShiftContext
                     {
                         HasAssignedShift = true,
@@ -122,32 +266,40 @@ namespace Asistencia.Services.Services
                         ScheduledStart = scheduledRange.scheduledStart,
                         ScheduledEnd = scheduledRange.scheduledEnd,
                         WindowStart = scheduledRange.scheduledStart.Subtract(EarlyWindowTolerance),
-                        WindowEnd = scheduledRange.scheduledEnd.Add(LateWindowTolerance)
+                        WindowEnd = scheduledRange.scheduledEnd.Add(LateWindowTolerance),
+                        FuenteHorario = "ASIGNACION_FALLBACK"
                     };
                 }
             }
 
+            // ── PASO 3: Horario genérico por defecto ────────────────────
             if (includeDefaultFallback)
             {
-                var defaultStart = today.Add(DefaultStartTime);
-                var defaultEnd = today.Add(DefaultEndTime);
+                var defaultStart = now.Date.Add(DefaultStartTime);
+                var defaultEnd = now.Date.Add(DefaultEndTime);
                 return new ShiftContext
                 {
                     HasAssignedShift = true,
                     HasActiveSchedule = true,
                     ScheduledStart = defaultStart,
                     ScheduledEnd = defaultEnd,
-                    WindowStart = today,
-                    WindowEnd = today.AddDays(1).AddTicks(-1)
+                    WindowStart = now.Date,
+                    WindowEnd = now.Date.AddDays(1).AddTicks(-1),
+                    FuenteHorario = "DEFAULT"
                 };
             }
 
             return new ShiftContext
             {
                 HasAssignedShift = true,
-                HasActiveSchedule = true
+                HasActiveSchedule = true,
+                FuenteHorario = "SIN_VENTANA"
             };
         }
+
+        // ══════════════════════════════════════════════════════════════
+        // GET ALL (paginado)
+        // ══════════════════════════════════════════════════════════════
 
         public async Task<PagedResult<MarcacionAsistencia>> GetAllAsync(PaginationDto pagination)
         {
@@ -157,125 +309,166 @@ namespace Asistencia.Services.Services
                 .Skip((pagination.PageNumber - 1) * pagination.PageSize)
                 .Take(pagination.PageSize)
                 .ToListAsync();
+
             return new PagedResult<MarcacionAsistencia>
             {
                 Items = items,
                 TotalCount = totalCount,
                 PageSize = pagination.PageSize,
                 CurrentPage = pagination.PageNumber,
-                TotalPages = (int)System.Math.Ceiling(totalCount / (double)pagination.PageSize)
+                TotalPages = (int)Math.Ceiling(totalCount / (double)pagination.PageSize)
             };
         }
 
+        // ══════════════════════════════════════════════════════════════
+        // ADD MARCACION (ENTRADA / SALIDA automática)
+        // ══════════════════════════════════════════════════════════════
+
         public async Task<MarcacionResponse> AddMarcacionAsync(MarcacionRequest marcacionRequest)
         {
-            var now = System.DateTime.Now;
-            var shiftContext = await ResolveShiftContextAsync(
-                marcacionRequest.IdTrabajador,
-                now,
-                includeTodayFallback: false,
-                includeDefaultFallback: false);
+            // Todas las validaciones han sido comentadas para permitir marcar sin restricciones.
+            var now = DateTime.Now;
 
-            if (!shiftContext.HasAssignedShift)
-            {
-                return new MarcacionResponse { Success = false, Code = "ERROR_NO_TURNO", Message = "No tiene un turno asignado para la fecha actual.", Detail = "Verifique asignación de turno del trabajador." };
-            }
+            // ── 1. Resolver contexto de horario ─────────────────────────
+            // var shiftContext = await ResolveShiftContextAsync(
+            //     marcacionRequest.IdTrabajador,
+            //     now,
+            //     includeTodayFallback: false,
+            //     includeDefaultFallback: false);
 
-            // 1. Obtener el trabajador y su centro de costo
+            // if (!shiftContext.HasAssignedShift)
+            // {
+            //     return new MarcacionResponse
+            //     {
+            //         Success = false,
+            //         Code = "ERROR_NO_TURNO",
+            //         Message = "No tiene un turno asignado para la fecha actual.",
+            //         Detail = $"Verifique asignación de turno del trabajador. [Fuente: {shiftContext.FuenteHorario}]"
+            //     };
+            // }
+
+            // ── 2. Cargar trabajador y sucursal ──────────────────────────
             var trabajador = await _context.Trabajadores
                 .Include(t => t.Sucursal)
                 .FirstOrDefaultAsync(t => t.Id == marcacionRequest.IdTrabajador);
 
+            // if (trabajador == null || trabajador.Sucursal == null)
+            // {
+            //     return new MarcacionResponse
+            //     {
+            //         Success = false,
+            //         Code = "ERROR_TRABAJADOR_NO_ENCONTRADO",
+            //         Message = "Trabajador no encontrado o sin centro de trabajo asignado.",
+            //         Detail = "Confirme que el IdTrabajador es correcto y tiene sucursal vinculada."
+            //     };
+            // }
 
-            if (trabajador == null || trabajador.Sucursal == null)
-            {
-                return new MarcacionResponse { Success = false, Code = "ERROR_TRABAJADOR_NO_ENCONTRADO", Message = "Trabajador no encontrado o sin centro de trabajo asignado.", Detail = "Confirme que el IdTrabajador es correcto y tiene sucursal vinculada." };
-            }
+            // if (!shiftContext.HasActiveSchedule)
+            // {
+            //     return new MarcacionResponse
+            //     {
+            //         Success = false,
+            //         Code = "ERROR_SIN_HORARIO",
+            //         Message = "No tiene un horario definido para la fecha actual.",
+            //         Detail = $"Revise la configuración de horarios para el turno asignado. [Fuente: {shiftContext.FuenteHorario}]"
+            //     };
+            // }
 
-            if (!shiftContext.HasActiveSchedule)
-            {
-                return new MarcacionResponse { Success = false, Code = "ERROR_SIN_HORARIO", Message = "No tiene un horario definido para la fecha actual.", Detail = "Revise la configuración de horarios para el turno asignado." };
-            }
+            // if (!shiftContext.WindowStart.HasValue || !shiftContext.WindowEnd.HasValue)
+            // {
+            //     return new MarcacionResponse
+            //     {
+            //         Success = false,
+            //         Code = "ERROR_SIN_HORARIO",
+            //         Message = "No tiene un horario definido para la fecha actual.",
+            //         Detail = "Revise la configuración de horarios para el turno asignado o márquee dentro de la ventana permitida."
+            //     };
+            // }
 
-            if (!shiftContext.WindowStart.HasValue || !shiftContext.WindowEnd.HasValue)
-            {
-                return new MarcacionResponse { Success = false, Code = "ERROR_SIN_HORARIO", Message = "No tiene un horario definido para la fecha actual.", Detail = "Revise la configuración de horarios para el turno asignado o márquee dentro de la ventana permitida." };
-            }
+            // var windowStart = shiftContext.WindowStart.Value;
+            // var windowEnd = shiftContext.WindowEnd.Value;
 
-            var windowStart = shiftContext.WindowStart.Value;
-            var windowEnd = shiftContext.WindowEnd.Value;
+            // ── 3. Validar geolocalización ───────────────────────────────
+            // var sucursalActiva = await ResolverSucursalActivaAsync(trabajador.Id, trabajador.Sucursal);
+            // var geofenceSucursal = sucursalActiva ?? trabajador.Sucursal;
 
-            // 2. Validar geolocalización (después de confirmar que tiene horario hoy)
-            var sucursal = trabajador.Sucursal;
-            var distancia = CalcularDistancia(
-                marcacionRequest.Latitud, marcacionRequest.Longitud,
-                (double)(sucursal.LatitudCentro ?? 0), (double)(sucursal.LongitudCentro ?? 0));
+            // var distancia = CalcularDistancia(
+            //     marcacionRequest.Latitud, marcacionRequest.Longitud,
+            //     (double)(geofenceSucursal.LatitudCentro ?? 0),
+            //     (double)(geofenceSucursal.LongitudCentro ?? 0));
 
-            bool ubicacionValida = distancia <= (sucursal.PerimetroM ?? 0);
+            // bool ubicacionValida = distancia <= (geofenceSucursal.PerimetroM ?? 0);
 
-            if (!ubicacionValida && trabajador.MarcajeEnZona)
-            {
-                return new MarcacionResponse { Success = false, Code = "ERROR_FUERA_ZONA", Message = "Marcación fuera del área permitida.", Detail = $"Se encuentra a {distancia:F2} m del centro de trabajo." };
-            }
+            // if (!ubicacionValida && trabajador.MarcajeEnZona)
+            // {
+            //     return new MarcacionResponse
+            //     {
+            //         Success = false,
+            //         Code = "ERROR_FUERA_ZONA",
+            //         Message = "Marcación fuera del área permitida.",
+            //         Detail = $"Se encuentra a {distancia:F2} m del centro de trabajo."
+            //     };
+            // }
 
-            // --- LÓGICA REVISADA PARA DETERMINAR EL TIPO DE MARCACIÓN Y VALIDACIÓN ---
-            // Obtener todas las marcaciones existentes para el trabajador en el día actual
-            var existingMarksToday = await _context.MarcacionesAsistencia
-                .Where(m => m.TrabajadorId == marcacionRequest.IdTrabajador && m.FechaHora >= windowStart && m.FechaHora <= windowEnd)
-                .OrderBy(m => m.FechaHora)
-                .ToListAsync();
+            // ── 4. Determinar tipo de marcación (ENTRADA / SALIDA) ───────
+            // var existingMarksToday = await _context.MarcacionesAsistencia
+            //     .Where(m =>
+            //         m.TrabajadorId == marcacionRequest.IdTrabajador &&
+            //         m.FechaHora >= windowStart &&
+            //         m.FechaHora <= windowEnd)
+            //     .OrderBy(m => m.FechaHora)
+            //     .ToListAsync();
 
-            string tipoMarcacion;
-            if (!existingMarksToday.Any())
-            {
-                // Si no hay marcaciones para hoy, la primera debe ser una "Entrada".
-                tipoMarcacion = "Entrada";
-            }
-            else
-            {
-                var lastMark = existingMarksToday.Last();
+            // string tipoMarcacion;
+            // if (!existingMarksToday.Any())
+            // {
+            //     tipoMarcacion = "ENTRADA";
+            // }
+            // else
+            // {
+            //     var lastMark = existingMarksToday.Last();
+            //     if (string.Equals(lastMark.TipoMarcacion, "ENTRADA", StringComparison.OrdinalIgnoreCase))
+            //     {
+            //         tipoMarcacion = "SALIDA";
+            //     }
+            //     else
+            //     {
+            //         return new MarcacionResponse
+            //         {
+            //             Success = false,
+            //             Code = "ERROR_SALIDA_REGISTRADA",
+            //             Message = "Ya registró su salida hoy; no se permite nueva entrada sin configuración de turnos adicionales.",
+            //             Detail = "Si corresponde, configure turnos adicionales o permita reingresos."
+            //         };
+            //     }
+            // }
 
-                if (lastMark.TipoMarcacion == "Entrada")
-                {
-                    // Si la última marcación fue una "Entrada", la siguiente debe ser una "Salida".
-                    tipoMarcacion = "Salida";
-                }
-                else // lastMark.TipoMarcacion == "Salida"
-                {
-                    // Si la última marcación fue una "Salida", significa que ya se completó un ciclo de entrada-salida.
-                    // Para evitar múltiples "Entradas" en el mismo día se impide una nueva marcación de "Entrada".
-                    return new MarcacionResponse { Success = false, Code = "ERROR_SALIDA_REGISTRADA", Message = "Ya registró su salida hoy; no se permite nueva entrada sin configuración de turnos adicionales.", Detail = "Si corresponde, configure turnos adicionales o permita reingresos." };
-                }
-            }
+            // ── 5. Evitar duplicados recientes (ventana 2 minutos) ───────
+            // var existeMarcacionIgual = existingMarksToday.Any(m =>
+            //     m.TipoMarcacion == tipoMarcacion &&
+            //     Math.Abs((m.FechaHora - now).TotalSeconds) < 120);
 
-            // Validación para evitar duplicados (marcaciones iguales en tipo y muy cercanas en el tiempo)
-            var existeMarcacionIgual = existingMarksToday.Any(m =>
-                m.TipoMarcacion == tipoMarcacion &&
-                Math.Abs((m.FechaHora - now).TotalSeconds) < 120 // margen de 2 minutos
-            );
+            // if (existeMarcacionIgual)
+            // {
+            //     return new MarcacionResponse
+            //     {
+            //         Success = false,
+            //         Code = "ERROR_DUPLICADO_RECIENTE",
+            //         Message = $"Ya existe una marcación de {tipoMarcacion} registrada recientemente.",
+            //         Detail = "Hay una marcación del mismo tipo dentro de los últimos 120 segundos."
+            //     };
+            // }
 
-            if (existeMarcacionIgual)
-            {
-                return new MarcacionResponse
-                {
-                    Success = false,
-                    Code = "ERROR_DUPLICADO_RECIENTE",
-                    Message = $"Ya existe una marcación de {tipoMarcacion} registrada recientemente.",
-                    Detail = "Hay una marcación del mismo tipo dentro de los últimos 120 segundos."
-                };
-            }
-
-            // 5. Crear y guardar la marcación
+            // ── 6. Guardar marcación ─────────────────────────────────────
             var nuevaMarcacion = new MarcacionAsistencia
             {
                 TrabajadorId = marcacionRequest.IdTrabajador,
                 FechaHora = now,
                 Latitud = (decimal)marcacionRequest.Latitud,
                 Longitud = (decimal)marcacionRequest.Longitud,
-                TipoMarcacion = tipoMarcacion,
+                TipoMarcacion = "ENTRADA", // Siempre ENTRADA para pruebas sin validación
                 FotoUrl = marcacionRequest.FotoUrl,
-                UbicacionValida = ubicacionValida,
-                //TokenValidacion = Guid.NewGuid().ToString() // Generar un token único
+                UbicacionValida = true // Siempre true para pruebas sin validación
             };
 
             _context.MarcacionesAsistencia.Add(nuevaMarcacion);
@@ -285,172 +478,14 @@ namespace Asistencia.Services.Services
             {
                 Success = true,
                 Code = "SUCCESS_MARCACION_OK",
-                Message = $"Marcación de {tipoMarcacion} registrada con éxito a las {nuevaMarcacion.FechaHora:HH:mm:ss}.",
+                Message = $"Marcación de ENTRADA registrada con éxito a las {nuevaMarcacion.FechaHora:HH:mm:ss}.",
                 Data = nuevaMarcacion
             };
         }
 
-        private double CalcularDistancia(double lat1, double lon1, double lat2, double lon2)
-        {
-            var R = 6371e3; // Radio de la Tierra en metros
-            var φ1 = lat1 * System.Math.PI / 180;
-            var φ2 = lat2 * System.Math.PI / 180;
-            var Δφ = (lat2 - lat1) * System.Math.PI / 180;
-            var Δλ = (lon2 - lon1) * System.Math.PI / 180;
-
-            var a = System.Math.Sin(Δφ / 2) * System.Math.Sin(Δφ / 2) +
-                    System.Math.Cos(φ1) * System.Math.Cos(φ2) *
-                    System.Math.Sin(Δλ / 2) * System.Math.Sin(Δλ / 2);
-            var c = 2 * System.Math.Atan2(System.Math.Sqrt(a), System.Math.Sqrt(1 - a));
-
-            return R * c; // en metros
-        }
-
-        // Comprueba si el campo DiaSemana (puede ser '1', 'Mon', 'Lun', '1-5', 'Mon-Fri', '1,2,3')
-        // coincide con la fecha dada.
-        private bool IsDiaSemanaMatch(string diaSemanaRaw, DateTime fecha)
-        {
-            if (string.IsNullOrWhiteSpace(diaSemanaRaw)) return false;
-
-            // Normalizar y split por comas o punto y coma
-            var parts = diaSemanaRaw.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries)
-                .Select(p => p.Trim())
-                .Where(p => !string.IsNullOrEmpty(p));
-
-            var isoDay = (fecha.DayOfWeek == System.DayOfWeek.Sunday) ? 7 : (int)fecha.DayOfWeek; // 1..7
-
-            foreach (var part in parts)
-            {
-                // Range como '1-5' o 'Mon-Fri' o 'Lun-Vie'
-                if (part.Contains('-'))
-                {
-                    var range = part.Split('-', StringSplitOptions.RemoveEmptyEntries).Select(x => x.Trim()).ToArray();
-                    if (range.Length != 2) continue;
-                    var start = ParseDayTokenToIso(range[0]);
-                    var end = ParseDayTokenToIso(range[1]);
-                    if (start == null || end == null) continue;
-                    // considerar inclusive
-                    if (start <= end)
-                    {
-                        if (isoDay >= start && isoDay <= end) return true;
-                    }
-                    else
-                    {
-                        // wrap-around (ej: 6-2)
-                        if (isoDay >= start || isoDay <= end) return true;
-                    }
-                }
-                else
-                {
-                    var val = ParseDayTokenToIso(part);
-                    if (val != null && val == isoDay) return true;
-                }
-            }
-
-            return false;
-        }
-
-        // Convierte tokens como '1', 'Mon', 'Lun', 'Monday', 'Lunes' a ISO day number 1..7
-        private int? ParseDayTokenToIso(string token)
-        {
-            if (string.IsNullOrWhiteSpace(token)) return null;
-            token = token.Trim();
-
-            // si es número
-            if (int.TryParse(token, out var n))
-            {
-                // aceptar 0..6 (System.DayOfWeek) o 1..7 (ISO)
-                if (n >= 0 && n <= 6)
-                {
-                    return n == 0 ? 7 : n; // convertir 0(Sun) -> 7
-                }
-                if (n >= 1 && n <= 7) return n;
-            }
-
-            // map de nombres (español e inglés y abreviaturas)
-            var lower = token.ToLowerInvariant();
-            return lower switch
-            {
-                "mon" or "monday" or "lun" or "lunes" => 1,
-                "tue" or "tues" or "tuesday" or "mar" or "martes" => 2,
-                "wed" or "wednesday" or "mie" or "miercoles" or "miércoles" => 3,
-                "thu" or "thur" or "thurs" or "thursday" or "jue" or "jueves" => 4,
-                "fri" or "friday" or "vie" or "viernes" => 5,
-                "sat" or "saturday" or "sab" or "sabado" or "sábado" => 6,
-                "sun" or "sunday" or "dom" or "domingo" => 7,
-                _ => null
-            };
-        }
-
-        // Determina si el HorarioDetalle aplica a 'now' y devuelve la ventana (start,end)
-        // Soporta turnos overnight (SalidaDiaSiguiente o HoraFin < HoraInicio) y tolerancias.
-        private bool TryMatchHorarioDetalleWindow(HorarioDetalle hd, DateTime now, TimeSpan earlyWindow, TimeSpan lateWindow, out DateTime windowStart, out DateTime windowEnd)
-        {
-            windowStart = DateTime.MinValue;
-            windowEnd = DateTime.MinValue;
-
-            bool isOvernight = hd.SalidaDiaSiguiente || hd.HoraFin < hd.HoraInicio;
-
-            // Intentar con el día actual
-            if (IsDiaSemanaMatch(hd.DiaSemana, now))
-            {
-                var start = now.Date.Add(hd.HoraInicio);
-                var end = isOvernight ? now.Date.AddDays(1).Add(hd.HoraFin) : now.Date.Add(hd.HoraFin);
-
-                var startWindow = start.Subtract(earlyWindow);
-                var endWindow = end.Add(lateWindow);
-
-                if (now >= startWindow && now <= endWindow)
-                {
-                    windowStart = startWindow;
-                    windowEnd = endWindow;
-                    return true;
-                }
-            }
-
-            // Intentar con el día anterior (útil para marcas después de medianoche)
-            var prev = now.Date.AddDays(-1);
-            if (IsDiaSemanaMatch(hd.DiaSemana, prev))
-            {
-                var start = prev.Add(hd.HoraInicio);
-                var end = isOvernight ? prev.AddDays(1).Add(hd.HoraFin) : prev.Add(hd.HoraFin);
-
-                var startWindow = start.Subtract(earlyWindow);
-                var endWindow = end.Add(lateWindow);
-
-                if (now >= startWindow && now <= endWindow)
-                {
-                    windowStart = startWindow;
-                    windowEnd = endWindow;
-                    return true;
-                }
-            }
-
-            // Intentar con el día siguiente como respaldo
-            var next = now.Date.AddDays(1);
-            if (IsDiaSemanaMatch(hd.DiaSemana, next))
-            {
-                var start = next.Add(hd.HoraInicio);
-                var end = isOvernight ? next.AddDays(1).Add(hd.HoraFin) : next.Add(hd.HoraFin);
-
-                var startWindow = start.Subtract(earlyWindow);
-                var endWindow = end.Add(lateWindow);
-
-                if (now >= startWindow && now <= endWindow)
-                {
-                    windowStart = startWindow;
-                    windowEnd = endWindow;
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        public Task<MarcacionAsistencia> getMarcadoAsistenciaAsync(int trabajadorId)
-        {
-            throw new NotImplementedException();
-        }
+        // ══════════════════════════════════════════════════════════════
+        // CALCULATE TIME WORKED
+        // ══════════════════════════════════════════════════════════════
 
         public async Task<TimeWorkedDto> CalculateTimeWorkedAsync(int trabajadorId)
         {
@@ -468,38 +503,37 @@ namespace Asistencia.Services.Services
             var windowStart = shiftContext.WindowStart ?? today;
             var windowEnd = shiftContext.WindowEnd ?? today.AddDays(1).AddTicks(-1);
 
-            // 2. Obtener Marcaciones dentro de la ventana calculada (no solo por día calendario)
-            var calculatedWindowMarks = await _context.MarcacionesAsistencia
-                .Where(m => m.TrabajadorId == trabajadorId && m.FechaHora >= windowStart && m.FechaHora <= windowEnd)
+            var marks = await _context.MarcacionesAsistencia
+                .Where(m =>
+                    m.TrabajadorId == trabajadorId &&
+                    m.FechaHora >= windowStart &&
+                    m.FechaHora <= windowEnd)
                 .OrderBy(m => m.FechaHora)
                 .ToListAsync();
 
-            var lastEntry = calculatedWindowMarks.FirstOrDefault(m => m.TipoMarcacion == "Entrada");
+            var lastEntry = marks.FirstOrDefault(m =>
+                string.Equals(m.TipoMarcacion, "ENTRADA", StringComparison.OrdinalIgnoreCase));
+
             var lastExit = lastEntry == null
                 ? null
-                : calculatedWindowMarks.LastOrDefault(m => m.TipoMarcacion == "Salida" && m.FechaHora > lastEntry.FechaHora);
+                : marks.LastOrDefault(m =>
+                    string.Equals(m.TipoMarcacion, "SALIDA", StringComparison.OrdinalIgnoreCase) &&
+                    m.FechaHora > lastEntry.FechaHora);
 
             TimeSpan timeWorked;
-
-            // --- Lógica del Cálculo ---
             if (lastEntry == null)
             {
-                // Condición 3: No hay entrada.
                 timeWorked = TimeSpan.Zero;
             }
             else if (lastExit != null && lastExit.FechaHora > lastEntry.FechaHora)
             {
-                // Condición 1: Ya se completó la jornada (Salida posterior a la Entrada).
                 timeWorked = lastExit.FechaHora - lastEntry.FechaHora;
             }
             else
             {
-                // Condición 2: Entrada registrada, pero Salida pendiente.
-                // Se calcula hasta el momento actual.
                 timeWorked = now - lastEntry.FechaHora;
             }
 
-            // Devolvemos el DTO con el resultado
             return new TimeWorkedDto
             {
                 ScheduledTime = $"({scheduledStart:HH:mm} - {scheduledEnd:HH:mm})",
@@ -507,9 +541,208 @@ namespace Asistencia.Services.Services
                 TimeWorkedFormatted = $"{Math.Floor(timeWorked.TotalHours)}h {timeWorked.Minutes}m",
                 EntryRegisteredAt = lastEntry?.FechaHora,
                 ExitRegisteredAt = lastExit?.FechaHora,
-                StatusMessage = "Cálculo realizado correctamente."
+                StatusMessage = $"Cálculo realizado correctamente. [Fuente: {shiftContext.FuenteHorario}]"
             };
         }
-    }
 
+        // ══════════════════════════════════════════════════════════════
+        // GET MARCADO (pendiente de implementar)
+        // ══════════════════════════════════════════════════════════════
+
+        public Task<MarcacionAsistencia> getMarcadoAsistenciaAsync(int trabajadorId)
+        {
+            throw new NotImplementedException();
+        }
+
+        // ══════════════════════════════════════════════════════════════
+        // HELPERS PRIVADOS
+        // ══════════════════════════════════════════════════════════════
+
+        private double CalcularDistancia(double lat1, double lon1, double lat2, double lon2)
+        {
+            const double R = 6371e3; // Radio de la Tierra en metros
+            var φ1 = lat1 * Math.PI / 180;
+            var φ2 = lat2 * Math.PI / 180;
+            var Δφ = (lat2 - lat1) * Math.PI / 180;
+            var Δλ = (lon2 - lon1) * Math.PI / 180;
+            var a = Math.Sin(Δφ / 2) * Math.Sin(Δφ / 2) +
+                     Math.Cos(φ1) * Math.Cos(φ2) *
+                     Math.Sin(Δλ / 2) * Math.Sin(Δλ / 2);
+            var c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
+            return R * c;
+        }
+
+        /// <summary>
+        /// Si el usuario es ADMIN y envía el header X-Sucursal-Activa,
+        /// verifica que el trabajador tenga permiso en esa sucursal y la retorna.
+        /// Si no, retorna la sucursal por defecto del trabajador.
+        /// </summary>
+        private async Task<SucursalCentro?> ResolverSucursalActivaAsync(
+            int trabajadorId, SucursalCentro? sucursalPorDefecto)
+        {
+            var httpContext = _httpContextAccessor.HttpContext;
+            if (httpContext == null) return sucursalPorDefecto;
+
+            var role = httpContext.User
+                .FindFirst(ClaimTypes.Role)?.Value?.Trim().ToUpperInvariant();
+            if (role != "ADMIN") return sucursalPorDefecto;
+
+            if (!httpContext.Request.Headers.TryGetValue("X-Sucursal-Activa", out var headerValue)
+                || !int.TryParse(headerValue.ToString(), out var sucursalActivaId)
+                || sucursalActivaId <= 0)
+                return sucursalPorDefecto;
+
+            var sucursalActiva = await _context.Database
+                .SqlQueryRaw<SucursalGeofenceDto>(@"
+                    SELECT TOP 1
+                        s.id_sucursal      AS IdSucursal,
+                        s.nombre_sucursal  AS NombreSucursal,
+                        s.latitud_centro   AS LatitudCentro,
+                        s.longitud_centro  AS LongitudCentro,
+                        s.perimetro_m      AS PerimetroM
+                    FROM dbo.TRABAJADOR_SUCURSALES ts
+                    INNER JOIN dbo.SUCURSAL s ON s.id_sucursal = ts.id_sucursal
+                    WHERE ts.id_trabajador   = {0}
+                      AND ts.id_sucursal     = {1}
+                      AND ts.puede_gestionar = 1
+                      AND (ts.fecha_fin IS NULL OR ts.fecha_fin >= CAST(GETDATE() AS DATE))",
+                    trabajadorId, sucursalActivaId)
+                .FirstOrDefaultAsync();
+
+            if (sucursalActiva == null) return sucursalPorDefecto;
+
+            return new SucursalCentro
+            {
+                Id = sucursalActiva.IdSucursal,
+                NombreSucursal = string.IsNullOrWhiteSpace(sucursalActiva.NombreSucursal)
+                    ? "Sucursal activa"
+                    : sucursalActiva.NombreSucursal,
+                LatitudCentro = sucursalActiva.LatitudCentro,
+                LongitudCentro = sucursalActiva.LongitudCentro,
+                PerimetroM = sucursalActiva.PerimetroM
+            };
+        }
+
+        /// <summary>
+        /// Verifica si el campo DiaSemana del HorarioDetalle corresponde a la fecha dada.
+        /// Soporta: número ('1'..'7'), nombre ('Lunes','Mon'), rango ('1-5','Lun-Vie'),
+        /// lista ('1,2,3'), y combinaciones de los anteriores separados por coma/punto y coma.
+        /// </summary>
+        private bool IsDiaSemanaMatch(string diaSemanaRaw, DateTime fecha)
+        {
+            if (string.IsNullOrWhiteSpace(diaSemanaRaw)) return false;
+
+            var parts = diaSemanaRaw
+                .Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(p => p.Trim())
+                .Where(p => !string.IsNullOrEmpty(p));
+
+            // ISO: Lunes=1 ... Domingo=7
+            var isoDay = fecha.DayOfWeek == DayOfWeek.Sunday ? 7 : (int)fecha.DayOfWeek;
+
+            foreach (var part in parts)
+            {
+                if (part.Contains('-'))
+                {
+                    var range = part.Split('-', StringSplitOptions.RemoveEmptyEntries)
+                        .Select(x => x.Trim()).ToArray();
+                    if (range.Length != 2) continue;
+                    var start = ParseDayTokenToIso(range[0]);
+                    var end = ParseDayTokenToIso(range[1]);
+                    if (start == null || end == null) continue;
+                    if (start <= end)
+                    {
+                        if (isoDay >= start && isoDay <= end) return true;
+                    }
+                    else // wrap-around, ej: Sáb-Mar (6-2)
+                    {
+                        if (isoDay >= start || isoDay <= end) return true;
+                    }
+                }
+                else
+                {
+                    var val = ParseDayTokenToIso(part);
+                    if (val != null && val == isoDay) return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Convierte tokens de día ('1', 'Mon', 'Lun', 'Monday', 'Lunes') a número ISO 1..7.
+        /// </summary>
+        private int? ParseDayTokenToIso(string token)
+        {
+            if (string.IsNullOrWhiteSpace(token)) return null;
+            token = token.Trim();
+
+            if (int.TryParse(token, out var n))
+            {
+                if (n >= 0 && n <= 6) return n == 0 ? 7 : n; // 0(Sun)→7
+                if (n >= 1 && n <= 7) return n;
+            }
+
+            return token.ToLowerInvariant() switch
+            {
+                "mon" or "monday" or "lun" or "lunes" => 1,
+                "tue" or "tues" or "tuesday" or "mar" or "martes" => 2,
+                "wed" or "wednesday" or "mie" or "miercoles" or "miércoles" => 3,
+                "thu" or "thur" or "thurs" or "thursday" or "jue" or "jueves" => 4,
+                "fri" or "friday" or "vie" or "viernes" => 5,
+                "sat" or "saturday" or "sab" or "sabado" or "sábado" => 6,
+                "sun" or "sunday" or "dom" or "domingo" => 7,
+                _ => null
+            };
+        }
+
+        /// <summary>
+        /// Determina si el HorarioDetalle aplica para 'now' según su ventana de marcación.
+        /// Prueba el día actual, el anterior (marcas nocturnas después de medianoche)
+        /// y el siguiente (para entradas muy anticipadas).
+        /// </summary>
+        private bool TryMatchHorarioDetalleWindow(
+            HorarioDetalle hd, DateTime now,
+            TimeSpan earlyWindow, TimeSpan lateWindow,
+            out DateTime windowStart, out DateTime windowEnd)
+        {
+            windowStart = DateTime.MinValue;
+            windowEnd = DateTime.MinValue;
+
+            bool isOvernight = hd.SalidaDiaSiguiente || hd.HoraFin < hd.HoraInicio;
+
+            // Día actual
+            if (IsDiaSemanaMatch(hd.DiaSemana, now))
+            {
+                var s = now.Date.Add(hd.HoraInicio);
+                var e = isOvernight ? now.Date.AddDays(1).Add(hd.HoraFin) : now.Date.Add(hd.HoraFin);
+                var ws = s.Subtract(earlyWindow);
+                var we = e.Add(lateWindow);
+                if (now >= ws && now <= we) { windowStart = ws; windowEnd = we; return true; }
+            }
+
+            // Día anterior (marcaciones nocturnas después de medianoche)
+            var prev = now.Date.AddDays(-1);
+            if (IsDiaSemanaMatch(hd.DiaSemana, prev))
+            {
+                var s = prev.Add(hd.HoraInicio);
+                var e = isOvernight ? prev.AddDays(1).Add(hd.HoraFin) : prev.Add(hd.HoraFin);
+                var ws = s.Subtract(earlyWindow);
+                var we = e.Add(lateWindow);
+                if (now >= ws && now <= we) { windowStart = ws; windowEnd = we; return true; }
+            }
+
+            // Día siguiente (entradas muy anticipadas, ej: 22:00 para turno que empieza a 00:00)
+            var next = now.Date.AddDays(1);
+            if (IsDiaSemanaMatch(hd.DiaSemana, next))
+            {
+                var s = next.Add(hd.HoraInicio);
+                var e = isOvernight ? next.AddDays(1).Add(hd.HoraFin) : next.Add(hd.HoraFin);
+                var ws = s.Subtract(earlyWindow);
+                var we = e.Add(lateWindow);
+                if (now >= ws && now <= we) { windowStart = ws; windowEnd = we; return true; }
+            }
+
+            return false;
+        }
+    }
 }

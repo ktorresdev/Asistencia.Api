@@ -21,13 +21,20 @@ namespace Asistencia.Services.Services
             _context = context;
         }
 
-        public async Task<PagedResult<SucursalCentro>> GetAllAsync(PaginationDto pagination)
+        public async Task<PagedResult<SucursalCentro>> GetAllAsync(PaginationDto pagination, string? search = null)
         {
             var query = _context.SucursalCentros.AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var searchLower = search.ToLower();
+                query = query.Where(s => s.NombreSucursal.ToLower().Contains(searchLower));
+            }
 
             var totalCount = await query.CountAsync();
 
             var items = await query
+                .OrderBy(s => s.NombreSucursal)
                 .Skip((pagination.PageNumber - 1) * pagination.PageSize)
                 .Take(pagination.PageSize)
                 .ToListAsync();
@@ -55,6 +62,16 @@ namespace Asistencia.Services.Services
                 throw new KeyNotFoundException($"SucursalCentro con ID {id} no encontrado.");
             }
 
+            // Validar que el nombre de sucursal no esté duplicado
+            var nombreDuplicado = await _context.SucursalCentros
+                .Where(s => s.Id != id && s.NombreSucursal.ToLower() == sucursalCentro.NombreSucursal.ToLower())
+                .AnyAsync();
+
+            if (nombreDuplicado)
+            {
+                throw new ArgumentException($"Ya existe una sucursal con el nombre '{sucursalCentro.NombreSucursal}'.");
+            }
+
             existingSucursalCentro.NombreSucursal = sucursalCentro.NombreSucursal;
             existingSucursalCentro.Direccion = sucursalCentro.Direccion;
             existingSucursalCentro.LatitudCentro = sucursalCentro.LatitudCentro;
@@ -62,8 +79,14 @@ namespace Asistencia.Services.Services
             existingSucursalCentro.PerimetroM = sucursalCentro.PerimetroM;
             existingSucursalCentro.EsActivo = sucursalCentro.EsActivo;
 
-            _context.SucursalCentros.Update(existingSucursalCentro);
-            await _context.SaveChangesAsync();
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex)
+            {
+                throw new InvalidOperationException("Error al actualizar la sucursal. Verifica que los datos sean válidos.", ex);
+            }
         }
 
         public async Task DeleteAsync(int id)
@@ -80,8 +103,24 @@ namespace Asistencia.Services.Services
 
         public async Task AddAsync(SucursalCentro sucursalCentro)
         {
-            _context.SucursalCentros.Add(sucursalCentro);
-            await _context.SaveChangesAsync();
+            // Validar que el nombre de sucursal no esté duplicado
+            var nombreDuplicado = await _context.SucursalCentros
+                .AnyAsync(s => s.NombreSucursal.ToLower() == sucursalCentro.NombreSucursal.ToLower());
+
+            if (nombreDuplicado)
+            {
+                throw new ArgumentException($"Ya existe una sucursal con el nombre '{sucursalCentro.NombreSucursal}'.");
+            }
+
+            try
+            {
+                _context.SucursalCentros.Add(sucursalCentro);
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex)
+            {
+                throw new InvalidOperationException("Error al crear la sucursal. Verifica que los datos sean válidos.", ex);
+            }
         }
     }
 }

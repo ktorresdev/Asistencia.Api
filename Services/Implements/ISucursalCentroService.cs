@@ -11,7 +11,7 @@ namespace Asistencia.Services.Implements
 {
     public interface ISucursalCentroService
     {
-        Task<PagedResult<SucursalCentro>> GetAllAsync(PaginationDto pagination);
+        Task<PagedResult<SucursalCentro>> GetAllAsync(PaginationDto pagination, string? search = null);
         Task<SucursalCentro?> GetByIdAsync(int id);
         Task AddAsync(SucursalCentro sucursalCentro);
         Task UpdateAsync(int id, SucursalCentro sucursalCentro);

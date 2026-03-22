@@ -27,6 +27,12 @@ builder.Services.AddScoped<ITipoTurnoService, TipoTurnoService>();
 builder.Services.AddScoped<ICargaMasivaTrabajadoresService, CargaMasivaTrabajadoresService>();
 // Add services to the container.
 builder.Services.AddScoped<IAsignacionTurnoService, AsignacionTurnoService>();
+builder.Services.AddScoped<IHorarioResolverService, HorarioResolverService>();
+builder.Services.AddScoped<ICoberturaTurnoService, CoberturaTurnoService>();
+builder.Services.AddScoped<IProgramacionDescansoService, ProgramacionDescansoService>();
+builder.Services.AddScoped<INotificacionService, NotificacionService>();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddHttpContextAccessor();
 builder.Services.AddSingleton<ICierreDiarioAsistenciaExecutor, CierreDiarioAsistenciaExecutor>();
 builder.Services.AddHostedService<CierreDiarioAsistenciaJob>();
 

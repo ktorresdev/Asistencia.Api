@@ -15,6 +15,7 @@ namespace Asistencia.Data.Entities.MarcacionAsistenciaEntites
         public int IdEstado { get; set; }
         public DateTime? FechaAutorizacion { get; set; }
         public string? UsuarioAutoriza { get; set; }
+        public int? IdAutoriza { get; set; }
 
         public virtual Trabajador Trabajador { get; set; } = null!;
         public virtual TipoJustificacion TipoJustificacion { get; set; } = null!;

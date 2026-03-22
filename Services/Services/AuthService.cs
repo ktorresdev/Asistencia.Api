@@ -2,6 +2,7 @@
 using Asistencia.Data.Entities.UserEntites;
 using Asistencia.Services.Dtos;
 using Asistencia.Services.Implements;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
@@ -20,12 +21,17 @@ namespace Asistencia.Services.Services
     {
         private readonly MarcacionAsistenciaDbContext _db;
         private readonly IConfiguration _config;
+        private readonly IHttpContextAccessor _httpContextAccessor;
 
-        public AuthService(MarcacionAsistenciaDbContext db, IConfiguration config)
+        public AuthService(MarcacionAsistenciaDbContext db, IConfiguration config, IHttpContextAccessor httpContextAccessor)
         {
             _db = db;
             _config = config;
+            _httpContextAccessor = httpContextAccessor;
         }
+
+        private string GetClientIp() =>
+            _httpContextAccessor.HttpContext?.Connection.RemoteIpAddress?.ToString() ?? "unknown";
 
         public async Task RegisterAsync(RegisterRequest request)
         {
@@ -36,7 +42,8 @@ namespace Asistencia.Services.Services
             {
                 Username = request.Username,
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
-                Email = request.Email
+                Email = request.Email,
+                Role = "TRABAJADOR"
             };
             _db.Users.Add(user);
             await _db.SaveChangesAsync();
@@ -62,8 +69,23 @@ namespace Asistencia.Services.Services
 
             var user = await _db.Users.Include(u => u.RefreshTokens)
                                       .FirstOrDefaultAsync(u => u.Username == username);
+
             if (user == null || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
+            {
+                // Registrar fallo de login en AUDIT_LOGIN
+                await _db.AuditLogins.AddAsync(new AuditLogin
+                {
+                    UserId = null,
+                    UsernameIntentado = username,
+                    IpAddress = GetClientIp(),
+                    UserAgent = _httpContextAccessor.HttpContext?.Request.Headers["User-Agent"].ToString(),
+                    Resultado = "FAIL",
+                    MotivoFallo = "Credenciales inválidas",
+                    CreatedAt = DateTime.UtcNow
+                });
+                await _db.SaveChangesAsync();
                 throw new UnauthorizedAccessException("Usuario o contraseña incorrectos.");
+            }
 
             AuthTrabajadorDto? trabajadorInfo = null;
             AuthPersonaDto? trabajadorPersona = null;
@@ -94,7 +116,7 @@ namespace Asistencia.Services.Services
 
                     trabajadorInfo = new AuthTrabajadorDto(
                         trabajadorData.Id,
-                        trabajadorData.UserId,
+                        trabajadorData.UserId ?? throw new InvalidOperationException("UserId es requerido para trabajador."),
                         trabajadorData.CorreoCorporativo,
                         trabajadorData.Cargo,
                         trabajadorData.AreaDepartamento,
@@ -128,13 +150,24 @@ namespace Asistencia.Services.Services
             {
                 Token = refreshToken,
                 UserId = user.Id,
-                ExpiresAt = DateTime.UtcNow.AddDays(refreshDays)
+                ExpiresAt = DateTime.UtcNow.AddDays(refreshDays),
+                IpAddress = GetClientIp(),
+                UserAgent = _httpContextAccessor.HttpContext?.Request.Headers["User-Agent"].ToString()
             };
 
-            // asociar clientId al refresh token si se desea (opcional)
-            // Actualmente no guardamos clientId en RefreshToken
-
             _db.RefreshTokens.Add(rtEntity);
+            await _db.SaveChangesAsync();
+
+            // Registrar éxito de login en AUDIT_LOGIN
+            await _db.AuditLogins.AddAsync(new AuditLogin
+            {
+                UserId = user.Id,
+                UsernameIntentado = username,
+                IpAddress = GetClientIp(),
+                UserAgent = _httpContextAccessor.HttpContext?.Request.Headers["User-Agent"].ToString(),
+                Resultado = "OK",
+                CreatedAt = DateTime.UtcNow
+            });
             await _db.SaveChangesAsync();
 
             return new AuthResponse(accessToken.token, refreshToken, accessToken.expiresAt, userInfo, normalizedRole, trabajadorInfo, trabajadorPersona);
@@ -149,6 +182,7 @@ namespace Asistencia.Services.Services
                 throw new UnauthorizedAccessException("Refresh token inválido o expirado.");
 
             rt.Revoked = true;
+            rt.RevokedAt = DateTime.UtcNow;
             _db.RefreshTokens.Update(rt);
 
             var user = rt.User ?? throw new UnauthorizedAccessException("Usuario no encontrado.");
@@ -175,7 +209,9 @@ namespace Asistencia.Services.Services
             {
                 Token = newRefreshToken,
                 UserId = user.Id,
-                ExpiresAt = DateTime.UtcNow.AddDays(refreshDays)
+                ExpiresAt = DateTime.UtcNow.AddDays(refreshDays),
+                IpAddress = GetClientIp(),
+                UserAgent = _httpContextAccessor.HttpContext?.Request.Headers["User-Agent"].ToString()
             };
 
             _db.RefreshTokens.Add(newRt);
@@ -189,6 +225,7 @@ namespace Asistencia.Services.Services
             var rt = await _db.RefreshTokens.FirstOrDefaultAsync(r => r.Token == refreshToken);
             if (rt == null) return;
             rt.Revoked = true;
+            rt.RevokedAt = DateTime.UtcNow;
             _db.RefreshTokens.Update(rt);
             await _db.SaveChangesAsync();
         }
@@ -213,6 +250,7 @@ namespace Asistencia.Services.Services
                 UserId = userId,
                 DeviceId = deviceId,
                 CreatedAt = DateTime.UtcNow,
+                ExpiresAt = DateTime.UtcNow.AddDays(GetDeviceTokenDays()),
                 Revoked = false
             };
 
@@ -230,8 +268,23 @@ namespace Asistencia.Services.Services
             var hashBytes = sha.ComputeHash(Encoding.UTF8.GetBytes(token));
             var tokenHash = Convert.ToBase64String(hashBytes);
 
-            var dt = await _db.DeviceTokens.Include(d => d.User).FirstOrDefaultAsync(d => d.TokenHash == tokenHash && !d.Revoked);
-            return dt?.User;
+            var nowUtc = DateTime.UtcNow;
+            var dt = await _db.DeviceTokens
+                .Include(d => d.User)
+                .FirstOrDefaultAsync(d => d.TokenHash == tokenHash
+                    && !d.Revoked
+                    && (d.ExpiresAt == null || d.ExpiresAt > nowUtc));
+
+            if (dt == null)
+            {
+                return null;
+            }
+
+            dt.LastUsedAt = nowUtc;
+            _db.DeviceTokens.Update(dt);
+            await _db.SaveChangesAsync();
+
+            return dt.User;
         }
 
         public async Task<IEnumerable<DeviceTokenDto>> GetDeviceTokensAsync(int userId)
@@ -249,6 +302,7 @@ namespace Asistencia.Services.Services
             var dt = await _db.DeviceTokens.FirstOrDefaultAsync(d => d.Id == deviceTokenId && d.UserId == userId);
             if (dt == null) throw new KeyNotFoundException("Device token not found for user.");
             dt.Revoked = true;
+            dt.RevokedAt = DateTime.UtcNow;
             _db.DeviceTokens.Update(dt);
             await _db.SaveChangesAsync();
         }
@@ -306,10 +360,23 @@ namespace Asistencia.Services.Services
             return role?.Trim().ToUpperInvariant() switch
             {
                 "SUPERADMIN" => "SUPERADMIN",
+                "SUPERVISOR" => "SUPERVISOR",
                 "ADMIN" => "ADMIN",
                 "TRABAJADOR" => "TRABAJADOR",
+                "EMPLOYEE" => "TRABAJADOR",
                 _ => role?.Trim().ToUpperInvariant() ?? string.Empty
             };
+        }
+
+        private int GetDeviceTokenDays()
+        {
+            var cfg = _config["Jwt:DeviceTokenDays"];
+            if (!string.IsNullOrWhiteSpace(cfg) && int.TryParse(cfg, out var days) && days > 0)
+            {
+                return days;
+            }
+
+            return 365;
         }
 
         private static string GenerateRefreshToken()

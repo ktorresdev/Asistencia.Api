@@ -12,14 +12,16 @@ namespace Asistencia.Data.Entities.MarcacionAsistenciaEntites
         public int PersonaId { get; set; }
         public int? JefeInmediatoId { get; set; }
         public int? SucursalId { get; set; }
-        public int UserId { get; set; }
+        public int? UserId { get; set; }
         public string? Cargo { get; set; }
         public string? AreaDepartamento { get; set; }
+        public int? IdArea { get; set; }
         public DateTime? FechaIngreso { get; set; }
         public DateTime? FechaBaja { get; set; }
         public int IdEstado { get; set; }
         public decimal? SueldoBruto { get; set; }
         public string? CorreoCorporativo { get; set; }
+        [MaxLength]
         public string? TelefonoCorporativo { get; set; }
         public bool HorasExtraConf { get; set; }
         public bool MarcajeEnZona { get; set; }
@@ -31,5 +33,8 @@ namespace Asistencia.Data.Entities.MarcacionAsistenciaEntites
         public virtual User User { get; set; } = null!;
         // Propiedad de navegación para el estado
         public virtual MaestroEstado Estado { get; set; } = null!;
+
+        // Colección de asignaciones de turno
+        public virtual ICollection<AsignacionTurno> AsignacionesTurno { get; set; } = new List<AsignacionTurno>();
     }
 }

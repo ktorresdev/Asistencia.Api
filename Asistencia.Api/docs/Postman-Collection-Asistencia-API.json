@@ -1,0 +1,324 @@
+{
+  "info": {
+    "_postman_id": "turnos-api-collection",
+    "name": "Asistencia API - Turnos y Tipos de Turnos",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"superAdmin\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "https://127.0.0.1:7209/api/Auth/login",
+              "protocol": "https",
+              "host": ["127", "0", "0", "1"],
+              "port": "7209",
+              "path": ["api", "Auth", "login"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Turnos",
+      "item": [
+        {
+          "name": "Listar Turnos",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "https://127.0.0.1:7209/api/Rrhh/Turnos?pageNumber=1&pageSize=10",
+              "protocol": "https",
+              "host": ["127", "0", "0", "1"],
+              "port": "7209",
+              "path": ["api", "Rrhh", "Turnos"],
+              "query": [
+                {
+                  "key": "pageNumber",
+                  "value": "1"
+                },
+                {
+                  "key": "pageSize",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Obtener Turno por ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "https://127.0.0.1:7209/api/Rrhh/Turnos/1",
+              "protocol": "https",
+              "host": ["127", "0", "0", "1"],
+              "port": "7209",
+              "path": ["api", "Rrhh", "Turnos", "1"]
+            }
+          }
+        },
+        {
+          "name": "Crear Turno",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipoTurnoId\": 1,\n  \"nombreCodigo\": \"TURNO_NOCHE\",\n  \"toleranciaIngreso\": 15,\n  \"toleranciaSalida\": 10,\n  \"esActivo\": true\n}"
+            },
+            "url": {
+              "raw": "https://127.0.0.1:7209/api/Rrhh/Turnos",
+              "protocol": "https",
+              "host": ["127", "0", "0", "1"],
+              "port": "7209",
+              "path": ["api", "Rrhh", "Turnos"]
+            }
+          }
+        },
+        {
+          "name": "Actualizar Turno",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": 1,\n  \"tipoTurnoId\": 1,\n  \"nombreCodigo\": \"TURNO_MAÑANA_ACTUALIZADO\",\n  \"toleranciaIngreso\": 20,\n  \"toleranciaSalida\": 15,\n  \"esActivo\": true\n}"
+            },
+            "url": {
+              "raw": "https://127.0.0.1:7209/api/Rrhh/Turnos/1",
+              "protocol": "https",
+              "host": ["127", "0", "0", "1"],
+              "port": "7209",
+              "path": ["api", "Rrhh", "Turnos", "1"]
+            }
+          }
+        },
+        {
+          "name": "Eliminar Turno",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "https://127.0.0.1:7209/api/Rrhh/Turnos/1",
+              "protocol": "https",
+              "host": ["127", "0", "0", "1"],
+              "port": "7209",
+              "path": ["api", "Rrhh", "Turnos", "1"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Tipos de Turnos",
+      "item": [
+        {
+          "name": "Listar Tipos de Turnos",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "https://127.0.0.1:7209/api/Rrhh/TipoTurno?pageNumber=1&pageSize=10",
+              "protocol": "https",
+              "host": ["127", "0", "0", "1"],
+              "port": "7209",
+              "path": ["api", "Rrhh", "TipoTurno"],
+              "query": [
+                {
+                  "key": "pageNumber",
+                  "value": "1"
+                },
+                {
+                  "key": "pageSize",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Obtener Tipo de Turno por ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "https://127.0.0.1:7209/api/Rrhh/TipoTurno/1",
+              "protocol": "https",
+              "host": ["127", "0", "0", "1"],
+              "port": "7209",
+              "path": ["api", "Rrhh", "TipoTurno", "1"]
+            }
+          }
+        },
+        {
+          "name": "Crear Tipo de Turno",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombreTipo\": \"Nocturno\"\n}"
+            },
+            "url": {
+              "raw": "https://127.0.0.1:7209/api/Rrhh/TipoTurno",
+              "protocol": "https",
+              "host": ["127", "0", "0", "1"],
+              "port": "7209",
+              "path": ["api", "Rrhh", "TipoTurno"]
+            }
+          }
+        },
+        {
+          "name": "Actualizar Tipo de Turno",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": 1,\n  \"nombreTipo\": \"Rotativo Actualizado\"\n}"
+            },
+            "url": {
+              "raw": "https://127.0.0.1:7209/api/Rrhh/TipoTurno/1",
+              "protocol": "https",
+              "host": ["127", "0", "0", "1"],
+              "port": "7209",
+              "path": ["api", "Rrhh", "TipoTurno", "1"]
+            }
+          }
+        },
+        {
+          "name": "Eliminar Tipo de Turno",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "https://127.0.0.1:7209/api/Rrhh/TipoTurno/1",
+              "protocol": "https",
+              "host": ["127", "0", "0", "1"],
+              "port": "7209",
+              "path": ["api", "Rrhh", "TipoTurno", "1"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Descansos",
+      "item": [
+        {
+          "name": "Obtener Descansos de Trabajador",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "https://127.0.0.1:7209/api/Descansos/42/2026-03-20",
+              "protocol": "https",
+              "host": ["127", "0", "0", "1"],
+              "port": "7209",
+              "path": ["api", "Descansos", "42", "2026-03-20"]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}

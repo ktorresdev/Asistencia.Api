@@ -157,28 +157,62 @@ namespace Asistencia.Api.Controllers
             public IFormFile? Foto { get; set; }
         }
 
-        // Dentro de AttendanceController.cs
+        // ✅ Consultar si puede marcar y obtener horario actual
         [HttpGet("status/{trabajadorId}")]
-        public async Task<IActionResult> GetAttendanceStatus(int trabajadorId)
+        public async Task<IActionResult> GetMarcacionStatus(int trabajadorId)
         {
-            // Llamada al servicio de estado
-            var status = await _marcacionAsistenciaService.CalculateTimeWorkedAsync(trabajadorId);
-
-            // Lógica para los botones (basada en el DTO devuelto)
-            var isEntryRegistered = status.EntryRegisteredAt.HasValue;
-            var isExitRegistered = status.ExitRegisteredAt.HasValue && status.EntryRegisteredAt.HasValue && status.ExitRegisteredAt.Value > status.EntryRegisteredAt.Value;
-
-            return Ok(new
+            try
             {
-                // Datos para Cards Informativas
-                TimeData = status,
-                // Datos para los Botones
-                PermiteMarcarEntrada = !isEntryRegistered, //|| isExitRegistered, // Permite entrada si no ha marcado O si ya cerró la jornada anterior
-                PermiteMarcarSalida = isEntryRegistered && !isExitRegistered, // Permite salida solo si entró y no ha salido
+                var timeWorked = await _marcacionAsistenciaService.CalculateTimeWorkedAsync(trabajadorId);
 
-                // Estado visual del app
-                SalidaPendiente = isEntryRegistered && !isExitRegistered
-            });
+                var isEntryRegistered = timeWorked.EntryRegisteredAt.HasValue;
+                var isExitRegistered = timeWorked.ExitRegisteredAt.HasValue && 
+                                      timeWorked.EntryRegisteredAt.HasValue && 
+                                      timeWorked.ExitRegisteredAt.Value > timeWorked.EntryRegisteredAt.Value;
+
+                return Ok(new
+                {
+                    success = true,
+                    trabajadorId = trabajadorId,
+
+                    // Información de horario
+                    horarioProgramado = timeWorked.ScheduledTime,
+
+                    // Información de marcaciones
+                    marcacionEntrada = timeWorked.EntryRegisteredAt,
+                    marcacionSalida = timeWorked.ExitRegisteredAt,
+                    tiempoTrabajadoMinutos = timeWorked.TimeWorkedMinutes,
+                    tiempoTrabajadoFormato = timeWorked.TimeWorkedFormatted,
+
+                    // Estados
+                    estado = timeWorked.StatusMessage,
+
+                    // Permisos de marcación
+                    puedeMarcarEntrada = !isEntryRegistered,      // ✅ Puede entrar si NO ha entrado
+                    puedeMarcarSalida = isEntryRegistered && !isExitRegistered, // ✅ Puede salir si entró pero no salió
+                    salidaPendiente = isEntryRegistered && !isExitRegistered     // ⚠️ Tiene salida pendiente
+                });
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new
+                {
+                    success = false,
+                    code = "ERROR_TRABAJADOR_NO_ENCONTRADO",
+                    message = "No se encontró el trabajador o no tiene turno asignado.",
+                    detail = ex.Message
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(StatusCodes.Status500InternalServerError, new
+                {
+                    success = false,
+                    code = "ERROR_INTERNO",
+                    message = "Error al consultar el estado de marcación.",
+                    detail = ex.Message
+                });
+            }
         }
     }
 }

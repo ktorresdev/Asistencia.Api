@@ -6,7 +6,7 @@ namespace Asistencia.Data.Entities.MarcacionAsistenciaEntites
     {
         public long Id { get; set; }
         public int TrabajadorId { get; set; }
-        public DateTime FechaAsistencia { get; set; }
+        public DateOnly FechaAsistencia { get; set; }
         public DateTime? HoraEntradaTeorica { get; set; }
         public DateTime? HoraSalidaTeorica { get; set; }
         public DateTime? HoraEntradaReal { get; set; }
@@ -14,6 +14,8 @@ namespace Asistencia.Data.Entities.MarcacionAsistenciaEntites
         public int MinutosTardanza { get; set; }
         public int MinutosExtra { get; set; }
         public required string EstadoAsistencia { get; set; }
+        public bool EsDiaBoleta { get; set; }
+        public int? IdCoberturaOrigen { get; set; }
         public virtual Trabajador Trabajador { get; set; } = null!;
     }
 }

@@ -19,7 +19,7 @@ namespace Asistencia.Api.Controllers
         }
 
         [HttpPost]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "ADMIN")]
         public async Task<IActionResult> Crear(CreateTrabajadorDto dto)
         {
             if (!ModelState.IsValid)
@@ -47,7 +47,7 @@ namespace Asistencia.Api.Controllers
         }
 
         [HttpPut("{id:int}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "ADMIN")]
         public async Task<IActionResult> Update(int id, [FromBody] UpdateTrabajadorDto dto)
         {
             if (!ModelState.IsValid)

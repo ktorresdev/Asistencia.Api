@@ -32,6 +32,13 @@ namespace Asistencia.Data.DbContexts
         public DbSet<User> Users { get; set; }
         public DbSet<RefreshToken> RefreshTokens { get; set; }
         public DbSet<DeviceToken> DeviceTokens { get; set; }
+        // Agregar en los DbSet:
+        public DbSet<AuditLogin> AuditLogins { get; set; }
+        public DbSet<Notificacion> Notificaciones { get; set; }
+        public DbSet<ProgramacionDescanso> ProgramacionDescansos { get; set; }
+        public DbSet<CoberturaTurno> CoberturasTurno { get; set; }
+        public DbSet<TrabajadorSucursal> TrabajadorSucursales { get; set; }
+        public DbSet<ProgramacionTurnoSemanal> ProgramacionTurnosSemanal { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -113,9 +120,10 @@ namespace Asistencia.Data.DbContexts
                 entity.Property(e => e.UserId).HasColumnName("id_user");
                 entity.Property(e => e.Cargo).HasColumnName("cargo").HasMaxLength(50);
                 entity.Property(e => e.AreaDepartamento).HasColumnName("area_departamento").HasMaxLength(50);
+                entity.Property(e => e.IdArea).HasColumnName("id_area");
                 entity.Property(e => e.FechaIngreso).HasColumnName("fecha_ingreso");
                 entity.Property(e => e.FechaBaja).HasColumnName("fecha_baja");
-                entity.Property(e => e.IdEstado).HasColumnName("id_estado").IsRequired().HasDefaultValue(10);
+                entity.Property(e => e.IdEstado).HasColumnName("id_estado").IsRequired().HasDefaultValue(1);
                 entity.Property(e => e.SueldoBruto).HasColumnName("sueldo_bruto").HasColumnType("decimal(10, 2)");
                 entity.Property(e => e.CorreoCorporativo).HasColumnName("correo_corporativo").HasMaxLength(100);
                 entity.Property(e => e.TelefonoCorporativo).HasColumnName("telefono_corporativo").HasMaxLength(20);
@@ -192,16 +200,27 @@ namespace Asistencia.Data.DbContexts
             {
                 entity.ToTable("ASIGNACIONES_TURNO");
                 entity.HasKey(e => e.Id);
-                entity.Property(e => e.Id).HasColumnName("id_asignacion");
+                entity.Property(e => e.Id).HasColumnName("id_asignacion").ValueGeneratedOnAdd();
 
                 entity.Property(e => e.TrabajadorId).HasColumnName("id_trabajador").IsRequired();
                 entity.Property(e => e.TurnoId).HasColumnName("id_turno").IsRequired();
+                entity.Property(e => e.HorarioTurnoId).HasColumnName("id_horario_turno");
                 entity.Property(e => e.FechaInicioVigencia).HasColumnName("fecha_inicio_vigencia").IsRequired();
                 entity.Property(e => e.FechaFinVigencia).HasColumnName("fecha_fin_vigencia");
                 entity.Property(e => e.EsVigente).HasColumnName("es_vigente").HasDefaultValue(true);
+                entity.Property(e => e.MotivoCambio).HasColumnName("motivo_cambio").HasMaxLength(30);
+                entity.Property(e => e.AprobadoPor).HasColumnName("aprobado_por");
+                entity.Property(e => e.CreatedAt)
+                    .HasColumnName("created_at")
+                    .HasColumnType("datetime2")
+                    .HasDefaultValueSql("SYSUTCDATETIME()")
+                    .ValueGeneratedOnAdd();
+                entity.Property(e => e.UpdatedAt).HasColumnName("updated_at").HasColumnType("datetime2");
 
-                entity.HasOne(d => d.Trabajador).WithMany().HasForeignKey(d => d.TrabajadorId);
+                entity.HasOne(d => d.Trabajador).WithMany(p => p.AsignacionesTurno).HasForeignKey(d => d.TrabajadorId);
                 entity.HasOne(d => d.Turno).WithMany().HasForeignKey(d => d.TurnoId).OnDelete(DeleteBehavior.NoAction);
+                entity.HasOne(d => d.HorarioTurno).WithMany().HasForeignKey(d => d.HorarioTurnoId).OnDelete(DeleteBehavior.NoAction);
+                entity.HasOne<Trabajador>().WithMany().HasForeignKey(d => d.AprobadoPor).OnDelete(DeleteBehavior.NoAction);
             });
 
             // TipoJustificacion
@@ -225,15 +244,17 @@ namespace Asistencia.Data.DbContexts
                 entity.Property(e => e.TrabajadorId).HasColumnName("id_trabajador").IsRequired();
                 entity.Property(e => e.TipoJustificacionId).HasColumnName("id_tipo_justificacion").IsRequired();
                 entity.Property(e => e.FechaJustificada).HasColumnName("fecha_justificada").IsRequired();
-                entity.Property(e => e.Motivo).HasColumnName("motivo").HasColumnType("text");
+                entity.Property(e => e.Motivo).HasColumnName("motivo").HasMaxLength(1000);
                 entity.Property(e => e.DocumentoAdjuntoUrl).HasColumnName("documento_adjunto_url").HasMaxLength(255);
                 entity.Property(e => e.IdEstado).HasColumnName("id_estado").IsRequired().HasDefaultValue(1);
                 entity.Property(e => e.FechaAutorizacion).HasColumnName("fecha_autorizacion");
                 entity.Property(e => e.UsuarioAutoriza).HasColumnName("usuario_autoriza").HasMaxLength(50);
+                entity.Property(e => e.IdAutoriza).HasColumnName("id_autoriza");
 
                 entity.HasOne(d => d.Trabajador).WithMany().HasForeignKey(d => d.TrabajadorId);
                 entity.HasOne(d => d.Estado).WithMany().HasForeignKey(d => d.IdEstado);
                 entity.HasOne(d => d.TipoJustificacion).WithMany().HasForeignKey(d => d.TipoJustificacionId);
+                entity.HasOne<Trabajador>().WithMany().HasForeignKey(d => d.IdAutoriza).OnDelete(DeleteBehavior.NoAction);
             });
 
             // MarcacionAsistencia
@@ -250,6 +271,9 @@ namespace Asistencia.Data.DbContexts
                 entity.Property(e => e.FotoUrl).HasColumnName("foto_url").HasMaxLength(255);
                 entity.Property(e => e.UbicacionValida).HasColumnName("ubicacion_valida");
 
+                // TokenValidacion no se usa por ahora, ignorar en mapeador
+                entity.Ignore(e => e.TokenValidacion);
+
                 entity.HasOne(d => d.Trabajador).WithMany().HasForeignKey(d => d.TrabajadorId);
             });
 
@@ -262,7 +286,7 @@ namespace Asistencia.Data.DbContexts
                 entity.Property(e => e.TrabajadorId).HasColumnName("id_trabajador").IsRequired();
                 entity.Property(e => e.FechaSolicitud).HasColumnName("fecha_solicitud").IsRequired();
                 entity.Property(e => e.HorasSolicitadas).HasColumnName("horas_solicitadas").HasColumnType("decimal(5, 2)").IsRequired();
-                entity.Property(e => e.Motivo).HasColumnName("motivo").HasColumnType("text");
+                entity.Property(e => e.Motivo).HasColumnName("motivo").HasMaxLength(1000);
                 entity.Property(e => e.IdEstado).HasColumnName("id_estado").IsRequired().HasDefaultValue(1);
                 entity.Property(e => e.IdJefeAprueba).HasColumnName("id_jefe_aprueba");
                 entity.Property(e => e.FechaAprobacion).HasColumnName("fecha_aprobacion");
@@ -288,10 +312,141 @@ namespace Asistencia.Data.DbContexts
                 entity.Property(e => e.HoraSalidaReal).HasColumnName("hora_salida_real");
                 entity.Property(e => e.MinutosTardanza).HasColumnName("minutos_tardanza").HasDefaultValue(0);
                 entity.Property(e => e.MinutosExtra).HasColumnName("minutos_extra").HasDefaultValue(0);
-                entity.Property(e => e.EstadoAsistencia).HasColumnName("estado_asistencia").HasMaxLength(20);
+                entity.Property(e => e.EstadoAsistencia).HasColumnName("estado_asistencia").HasMaxLength(30);
+                entity.Property(e => e.EsDiaBoleta).HasColumnName("es_dia_boleta").HasDefaultValue(false);
+                entity.Property(e => e.IdCoberturaOrigen).HasColumnName("id_cobertura_origen");
 
                 entity.HasOne(d => d.Trabajador).WithMany().HasForeignKey(d => d.TrabajadorId);
             });
+
+            // AuditLogin
+            modelBuilder.Entity<AuditLogin>(entity =>
+            {
+                entity.ToTable("AUDIT_LOGIN");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id_audit").ValueGeneratedOnAdd();
+                entity.Property(e => e.UserId).HasColumnName("user_id");
+                entity.Property(e => e.UsernameIntentado).HasColumnName("username_intentado").HasMaxLength(100).IsRequired();
+                entity.Property(e => e.IpAddress).HasColumnName("ip_address").HasMaxLength(45).IsRequired();
+                entity.Property(e => e.UserAgent).HasColumnName("user_agent").HasMaxLength(512);
+                entity.Property(e => e.Resultado).HasColumnName("resultado").HasMaxLength(10).IsRequired();
+                entity.Property(e => e.MotivoFallo).HasColumnName("motivo_fallo").HasMaxLength(60);
+                entity.Property(e => e.CreatedAt)
+                    .HasColumnName("created_at")
+                    .HasColumnType("datetime2")
+                    .HasDefaultValueSql("SYSUTCDATETIME()")
+                    .ValueGeneratedOnAdd();
+                entity.HasOne(d => d.User).WithMany().HasForeignKey(d => d.UserId).OnDelete(DeleteBehavior.SetNull);
+            });
+
+            // Notificacion
+            modelBuilder.Entity<Notificacion>(entity =>
+            {
+                entity.ToTable("NOTIFICACIONES");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id_notificacion").ValueGeneratedOnAdd();
+                entity.Property(e => e.UserId).HasColumnName("id_user").IsRequired();
+                entity.Property(e => e.Tipo).HasColumnName("tipo").HasMaxLength(30).IsRequired();
+                entity.Property(e => e.Titulo).HasColumnName("titulo").HasMaxLength(80).IsRequired();
+                entity.Property(e => e.Mensaje).HasColumnName("mensaje").HasMaxLength(300).IsRequired();
+                entity.Property(e => e.Leida).HasColumnName("leida").HasDefaultValue(false);
+                entity.Property(e => e.LeidaAt).HasColumnName("leida_at").HasColumnType("datetime2");
+                entity.Property(e => e.CreatedAt)
+                    .HasColumnName("created_at")
+                    .HasColumnType("datetime2")
+                    .HasDefaultValueSql("SYSUTCDATETIME()")
+                    .ValueGeneratedOnAdd();
+                entity.HasOne(d => d.User).WithMany().HasForeignKey(d => d.UserId);
+            });
+
+            // ProgramacionDescanso
+            modelBuilder.Entity<ProgramacionDescanso>(entity =>
+            {
+                entity.ToTable("PROGRAMACION_DESCANSOS");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id_programacion").ValueGeneratedOnAdd();
+                entity.Property(e => e.TrabajadorId).HasColumnName("id_trabajador").IsRequired();
+                entity.Property(e => e.Fecha).HasColumnName("fecha").IsRequired();
+                entity.Property(e => e.EsDescanso).HasColumnName("es_descanso").HasDefaultValue(false);
+                entity.Property(e => e.EsDiaBoleta).HasColumnName("es_dia_boleta").HasDefaultValue(false);
+                entity.Property(e => e.CreatedBy).HasColumnName("created_by");
+                entity.Property(e => e.CreatedAt)
+                    .HasColumnName("created_at")
+                    .HasColumnType("datetime2")
+                    .HasDefaultValueSql("SYSUTCDATETIME()")
+                    .ValueGeneratedOnAdd();
+                entity.Property(e => e.UpdatedAt).HasColumnName("updated_at").HasColumnType("datetime2");
+                entity.HasIndex(e => new { e.TrabajadorId, e.Fecha }).IsUnique();
+                entity.HasOne(d => d.Trabajador).WithMany().HasForeignKey(d => d.TrabajadorId);
+            });
+
+            // CoberturaTurno
+            modelBuilder.Entity<CoberturaTurno>(entity =>
+            {
+                entity.ToTable("COBERTURA_TURNOS");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id_cobertura").ValueGeneratedOnAdd();
+                entity.Property(e => e.Fecha).HasColumnName("fecha").IsRequired();
+                entity.Property(e => e.IdTrabajadorCubre).HasColumnName("id_trabajador_cubre").IsRequired();
+                entity.Property(e => e.IdTrabajadorAusente).HasColumnName("id_trabajador_ausente").IsRequired();
+                entity.Property(e => e.IdHorarioTurnoOriginal).HasColumnName("id_horario_turno_original").IsRequired();
+                entity.Property(e => e.TipoCobertura).HasColumnName("tipo_cobertura").HasMaxLength(15).IsRequired();
+                entity.Property(e => e.FechaSwapDevolucion).HasColumnName("fecha_swap_devolucion");
+                entity.Property(e => e.AprobadoPor).HasColumnName("aprobado_por");
+                entity.Property(e => e.Estado).HasColumnName("estado").HasMaxLength(12).HasDefaultValue("PENDIENTE");
+                entity.Property(e => e.IdCoberturaReciproca).HasColumnName("id_cobertura_reciproca");
+                entity.Property(e => e.CreatedAt)
+                    .HasColumnName("created_at")
+                    .HasColumnType("datetime2")
+                    .HasDefaultValueSql("SYSUTCDATETIME()")
+                    .ValueGeneratedOnAdd();
+                entity.Property(e => e.UpdatedAt).HasColumnName("updated_at").HasColumnType("datetime2");
+                entity.HasIndex(e => new { e.Fecha, e.IdTrabajadorAusente }).IsUnique();
+                entity.HasOne(d => d.TrabajadorCubre).WithMany().HasForeignKey(d => d.IdTrabajadorCubre).OnDelete(DeleteBehavior.NoAction);
+                entity.HasOne(d => d.TrabajadorAusente).WithMany().HasForeignKey(d => d.IdTrabajadorAusente).OnDelete(DeleteBehavior.NoAction);
+                entity.HasOne(d => d.HorarioTurnoOriginal).WithMany().HasForeignKey(d => d.IdHorarioTurnoOriginal).OnDelete(DeleteBehavior.NoAction);
+            });
+
+            // TrabajadorSucursal
+            modelBuilder.Entity<TrabajadorSucursal>(entity =>
+            {
+                entity.ToTable("TRABAJADOR_SUCURSALES");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id");
+                entity.Property(e => e.TrabajadorId).HasColumnName("id_trabajador").IsRequired();
+                entity.Property(e => e.SucursalId).HasColumnName("id_sucursal").IsRequired();
+                entity.Property(e => e.EsSucursalPrincipal).HasColumnName("es_sucursal_principal").HasDefaultValue(false);
+                entity.Property(e => e.PuedeGestionar).HasColumnName("puede_gestionar").HasDefaultValue(false);
+                entity.Property(e => e.FechaInicio).HasColumnName("fecha_inicio").IsRequired();
+                entity.Property(e => e.FechaFin).HasColumnName("fecha_fin");
+                entity.HasIndex(e => new { e.TrabajadorId, e.SucursalId }).IsUnique();
+                entity.HasOne(d => d.Trabajador).WithMany().HasForeignKey(d => d.TrabajadorId);
+                entity.HasOne(d => d.Sucursal).WithMany().HasForeignKey(d => d.SucursalId).OnDelete(DeleteBehavior.NoAction);
+            });
+
+
+            modelBuilder.Entity<ProgramacionTurnoSemanal>(entity =>
+            {
+                entity.ToTable("PROGRAMACION_TURNOS_SEMANAL");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id");
+                entity.Property(e => e.TrabajadorId).HasColumnName("id_trabajador").IsRequired();
+                entity.Property(e => e.Fecha).HasColumnName("fecha").IsRequired();
+                entity.Property(e => e.IdHorarioTurno).HasColumnName("id_horario_turno").IsRequired();
+                entity.Property(e => e.EsDescanso).HasColumnName("es_descanso").HasDefaultValue(false);
+                entity.Property(e => e.EsDiaBoleta).HasColumnName("es_dia_boleta").HasDefaultValue(false);
+                entity.Property(e => e.EsVacaciones).HasColumnName("es_vacaciones").HasDefaultValue(false);
+                entity.Property(e => e.CreatedBy).HasColumnName("created_by");
+                entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("SYSUTCDATETIME()");
+                entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+                entity.HasIndex(e => new { e.TrabajadorId, e.Fecha }).IsUnique();
+                entity.HasOne(d => d.Trabajador).WithMany().HasForeignKey(d => d.TrabajadorId);
+                entity.HasOne(d => d.HorarioTurno).WithMany().HasForeignKey(d => d.IdHorarioTurno)
+                    .OnDelete(DeleteBehavior.NoAction);
+            });
+
+
+
         }
 
 

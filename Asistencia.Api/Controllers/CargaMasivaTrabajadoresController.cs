@@ -37,7 +37,7 @@ namespace Asistencia.Api.Controllers
 
         [HttpPost("importar")]
         [HttpPost("importar-csv")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "ADMIN,SUPERADMIN")]
         [Consumes("multipart/form-data")]
         [RequestSizeLimit(20_000_000)]
         public async Task<IActionResult> ImportarArchivo([FromForm] ImportarTrabajadoresArchivoRequest request, CancellationToken cancellationToken)

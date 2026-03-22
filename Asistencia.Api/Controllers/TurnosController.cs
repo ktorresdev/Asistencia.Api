@@ -29,38 +29,82 @@ namespace Asistencia.Api.Controllers
         public async Task<ActionResult<Turno>> GetTurnoById(int id)
         {
             var turno = await _turnoService.GetByIdAsync(id);
-            if (turno == null) return NotFound($"No se encontro turno.");
+            if (turno == null) 
+                return NotFound($"No se encontró turno con ID {id}.");
             return Ok(turno);
         }
 
         [HttpPost]
-        [Authorize(Roles = "Admin")]
-        public async Task<ActionResult<Turno>> CreateTurno([FromBody] Turno turno)
+        [Authorize(Roles = "ADMIN,SUPERADMIN")]
+        public async Task<ActionResult<Turno>> CreateTurno([FromBody] TurnoCreateDto request)
         {
-            if (!ModelState.IsValid) return BadRequest(ModelState);
-
-            await _turnoService.AddAsync(turno);
-
-            return CreatedAtAction(nameof(GetTurnoById), new { id = turno.Id }, turno);
-        }
-
-        [HttpPut("{id:int}")]
-        [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> UpdateTurno(int id, [FromBody] Turno turno)
-        {
-            if (id != turno.Id) return BadRequest("El ID de la turno en la URL no coincide con el del cuerpo de la solicitud.");
             if (!ModelState.IsValid) return BadRequest(ModelState);
 
             try
             {
-                await _turnoService.UpdateAsync(id, turno);
+                var turnoId = await _turnoService.AddAsync(request);
+                return CreatedAtAction(nameof(GetTurnoById), new { id = turnoId }, request);
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ex.Message);
             }
             catch (KeyNotFoundException ex)
             {
                 return NotFound(ex.Message);
             }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
 
-            return NoContent();
+        [HttpPut("{id:int}")]
+        [Authorize(Roles = "ADMIN,SUPERADMIN")]
+        public async Task<IActionResult> UpdateTurno(int id, [FromBody] TurnoUpdateDto request)
+        {
+            if (id != request.Id) 
+                return BadRequest("El ID del turno en la URL no coincide con el del cuerpo de la solicitud.");
+
+            if (!ModelState.IsValid) 
+                return BadRequest(ModelState);
+
+            try
+            {
+                await _turnoService.UpdateAsync(id, request);
+                return NoContent();
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ex.Message);
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [HttpDelete("{id:int}")]
+        [Authorize(Roles = "ADMIN,SUPERADMIN")]
+        public async Task<IActionResult> DeleteTurno(int id)
+        {
+            try
+            {
+                await _turnoService.DeleteAsync(id);
+                return NoContent();
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ex.Message);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ex.Message);
+            }
         }
     }
 }

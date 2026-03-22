@@ -1,0 +1,267 @@
+### 📌 Ejemplos de Consumo - API Descansos
+
+## Cargar semana de descansos
+
+POST https://127.0.0.1:7209/api/Descansos/semana
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+Content-Type: application/json
+
+{
+  "fechaLunes": "2026-03-16",
+  "trabajadores": [
+    {
+      "idTrabajador": 1,
+      "diaDescanso": 0,
+      "diasBoleta": [0, 6]
+    },
+    {
+      "idTrabajador": 2,
+      "diaDescanso": 1,
+      "diasBoleta": []
+    },
+    {
+      "idTrabajador": 3,
+      "diaDescanso": 2,
+      "diasBoleta": [3]
+    },
+    {
+      "idTrabajador": 4,
+      "diaDescanso": 3,
+      "diasBoleta": [5, 6]
+    }
+  ]
+}
+
+### Respuesta esperada (200 OK)
+{
+  "ok": true,
+  "mensaje": "Semana cargada.",
+  "fechaLunes": "2026-03-16",
+  "fechaFin": "2026-03-22"
+}
+
+---
+
+## Obtener descansos de trabajador 1
+
+GET https://127.0.0.1:7209/api/Descansos/1/2026-03-20
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+### Respuesta esperada (200 OK)
+{
+  "idTrabajador": 1,
+  "fechaLunes": "2026-03-16",
+  "dias": [
+    {
+      "fecha": "2026-03-16",
+      "esDescanso": true,
+      "esDiaBoleta": true
+    },
+    {
+      "fecha": "2026-03-17",
+      "esDescanso": false,
+      "esDiaBoleta": false
+    },
+    {
+      "fecha": "2026-03-18",
+      "esDescanso": false,
+      "esDiaBoleta": false
+    },
+    {
+      "fecha": "2026-03-19",
+      "esDescanso": false,
+      "esDiaBoleta": false
+    },
+    {
+      "fecha": "2026-03-20",
+      "esDescanso": false,
+      "esDiaBoleta": false
+    },
+    {
+      "fecha": "2026-03-21",
+      "esDescanso": false,
+      "esDiaBoleta": false
+    },
+    {
+      "fecha": "2026-03-22",
+      "esDescanso": false,
+      "esDiaBoleta": true
+    }
+  ]
+}
+
+---
+
+## Obtener descansos de trabajador 2
+
+GET https://127.0.0.1:7209/api/Descansos/2/2026-03-16
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+### Respuesta esperada (200 OK)
+{
+  "idTrabajador": 2,
+  "fechaLunes": "2026-03-16",
+  "dias": [
+    {
+      "fecha": "2026-03-16",
+      "esDescanso": false,
+      "esDiaBoleta": false
+    },
+    {
+      "fecha": "2026-03-17",
+      "esDescanso": true,
+      "esDiaBoleta": false
+    },
+    {
+      "fecha": "2026-03-18",
+      "esDescanso": false,
+      "esDiaBoleta": false
+    },
+    {
+      "fecha": "2026-03-19",
+      "esDescanso": false,
+      "esDiaBoleta": false
+    },
+    {
+      "fecha": "2026-03-20",
+      "esDescanso": false,
+      "esDiaBoleta": false
+    },
+    {
+      "fecha": "2026-03-21",
+      "esDescanso": false,
+      "esDiaBoleta": false
+    },
+    {
+      "fecha": "2026-03-22",
+      "esDescanso": false,
+      "esDiaBoleta": false
+    }
+  ]
+}
+
+---
+
+## Obtener descansos de trabajador 4 (con boletas en sábado y domingo)
+
+GET https://127.0.0.1:7209/api/Descansos/4/2026-03-20
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+### Respuesta esperada (200 OK)
+{
+  "idTrabajador": 4,
+  "fechaLunes": "2026-03-16",
+  "dias": [
+    {
+      "fecha": "2026-03-16",
+      "esDescanso": false,
+      "esDiaBoleta": false
+    },
+    {
+      "fecha": "2026-03-17",
+      "esDescanso": false,
+      "esDiaBoleta": false
+    },
+    {
+      "fecha": "2026-03-18",
+      "esDescanso": false,
+      "esDiaBoleta": false
+    },
+    {
+      "fecha": "2026-03-19",
+      "esDescanso": true,
+      "esDiaBoleta": false
+    },
+    {
+      "fecha": "2026-03-20",
+      "esDescanso": false,
+      "esDiaBoleta": false
+    },
+    {
+      "fecha": "2026-03-21",
+      "esDescanso": false,
+      "esDiaBoleta": true
+    },
+    {
+      "fecha": "2026-03-22",
+      "esDescanso": false,
+      "esDiaBoleta": true
+    }
+  ]
+}
+
+---
+
+## Errores Posibles
+
+### Error 400 - Sin trabajadores
+POST https://127.0.0.1:7209/api/Descansos/semana
+Authorization: Bearer ...
+Content-Type: application/json
+
+{
+  "fechaLunes": "2026-03-16",
+  "trabajadores": []
+}
+
+### Respuesta (400 Bad Request)
+{
+  "message": "Debe enviar al menos un trabajador."
+}
+
+---
+
+### Error 400 - DiaDescanso inválido
+POST https://127.0.0.1:7209/api/Descansos/semana
+Authorization: Bearer ...
+Content-Type: application/json
+
+{
+  "fechaLunes": "2026-03-16",
+  "trabajadores": [
+    {
+      "idTrabajador": 1,
+      "diaDescanso": 8,
+      "diasBoleta": []
+    }
+  ]
+}
+
+### Respuesta (400 Bad Request)
+{
+  "message": "DiaDescanso debe estar entre 0 y 6."
+}
+
+---
+
+### Error 400 - DiasBoleta inválidos
+POST https://127.0.0.1:7209/api/Descansos/semana
+Authorization: Bearer ...
+Content-Type: application/json
+
+{
+  "fechaLunes": "2026-03-16",
+  "trabajadores": [
+    {
+      "idTrabajador": 1,
+      "diaDescanso": 0,
+      "diasBoleta": [0, 7, 9]
+    }
+  ]
+}
+
+### Respuesta (400 Bad Request)
+{
+  "message": "DiasBoleta solo admite valores entre 0 y 6."
+}
+
+---
+
+## Notas de Consumo
+
+1. **Autenticación obligatoria**: Todos los endpoints requieren Bearer token en Authorization header
+2. **Roles**: Solo ADMIN, SUPERADMIN, SUPERVISOR pueden cargar semanas
+3. **Formato fecha**: YYYY-MM-DD (ISO 8601)
+4. **Cálculo automático**: El sistema ajusta automáticamente al lunes de la semana
+5. **Múltiples consumiciones**: Puedes cargar para varios trabajadores en un solo POST
+6. **Actualización**: Si cargas la misma semana dos veces, se actualiza (upsert)

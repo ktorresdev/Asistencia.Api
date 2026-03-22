@@ -508,13 +508,24 @@ namespace Asistencia.Services.Services
 
             if (string.IsNullOrWhiteSpace(role))
             {
-                role = "Employee";
+                role = "TRABAJADOR";
             }
 
-            if (!role.Equals("Employee", StringComparison.OrdinalIgnoreCase) && !role.Equals("Admin", StringComparison.OrdinalIgnoreCase))
+            if (!role.Equals("TRABAJADOR", StringComparison.OrdinalIgnoreCase)
+                && !role.Equals("ADMIN", StringComparison.OrdinalIgnoreCase)
+                && !role.Equals("SUPERVISOR", StringComparison.OrdinalIgnoreCase)
+                && !role.Equals("Employee", StringComparison.OrdinalIgnoreCase))
             {
-                throw new InvalidOperationException("Role solo admite Employee o Admin.");
+                throw new InvalidOperationException("Role solo admite TRABAJADOR, ADMIN o SUPERVISOR.");
             }
+
+            var roleNormalizado = role.Trim().ToUpperInvariant() switch
+            {
+                "EMPLOYEE" => "TRABAJADOR",
+                "ADMIN" => "ADMIN",
+                "SUPERVISOR" => "SUPERVISOR",
+                _ => "TRABAJADOR"
+            };
 
             return new CargaMasivaTrabajadorFilaDto
             {
@@ -531,7 +542,7 @@ namespace Asistencia.Services.Services
                 FechaIngreso = fechaIngreso,
                 IdEstado = idEstado,
                 MarcajeEnZona = marcajeEnZona,
-                Role = role.Equals("Admin", StringComparison.OrdinalIgnoreCase) ? "Admin" : "Employee"
+                Role = roleNormalizado
             };
         }
 

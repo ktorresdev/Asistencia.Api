@@ -32,7 +32,10 @@ namespace Asistencia.Data.Entities.UserEntites
         [Required]
         [Column("role")]
         [MaxLength(20)]
-        public string Role { get; set; } = "Employee";
+        public string Role { get; set; } = "TRABAJADOR";
+
+        [Column("created_at")]
+        public DateTime CreatedAt { get; set; }
 
         public List<RefreshToken> RefreshTokens { get; set; } = new();
     }

@@ -12,8 +12,8 @@ namespace Asistencia.Services.Implements
     {
         Task<PagedResult<Turno>> GetAllAsync(PaginationDto pagination);
         Task<Turno?> GetByIdAsync(int id);
-        Task AddAsync(Turno request);
-        Task UpdateAsync(int id, Turno request);
+        Task<int> AddAsync(TurnoCreateDto request);
+        Task UpdateAsync(int id, TurnoUpdateDto request);
         Task DeleteAsync(int id);
     }
 }
