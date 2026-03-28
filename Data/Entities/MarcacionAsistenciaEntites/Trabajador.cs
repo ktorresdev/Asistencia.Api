@@ -36,5 +36,8 @@ namespace Asistencia.Data.Entities.MarcacionAsistenciaEntites
 
         // Colección de asignaciones de turno
         public virtual ICollection<AsignacionTurno> AsignacionesTurno { get; set; } = new List<AsignacionTurno>();
+
+        // Sedes adicionales asignadas (TRABAJADOR_SUCURSALES)
+        public virtual ICollection<TrabajadorSucursal>? TrabajadorSucursales { get; set; }
     }
 }

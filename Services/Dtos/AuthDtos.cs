@@ -33,7 +33,8 @@ namespace Asistencia.Services.Dtos
         string? AreaDepartamento,
         int? SucursalId,
         bool? TomarFoto,
-        AuthSucursalDto? Sucursal
+        AuthSucursalDto? Sucursal,
+        IReadOnlyList<AuthSucursalDto>? SucursalesAsignadas
     );
 
     public record AuthPersonaDto(

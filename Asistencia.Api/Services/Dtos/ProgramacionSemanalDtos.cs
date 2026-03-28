@@ -15,6 +15,9 @@ namespace Asistencia.Services.Dtos
     {
         public int TrabajadorId { get; set; }
         public string? TrabajadorNombre { get; set; }
+        public string? TipoTurnoNombre { get; set; }
+        public int? TurnoId { get; set; }
+        public int? SucursalId { get; set; }
         public List<ProgramacionDiaDto> Dias { get; set; } = new List<ProgramacionDiaDto>();
     }
 
@@ -26,6 +29,7 @@ namespace Asistencia.Services.Dtos
         public int? TurnoId { get; set; }
         public string? TurnoNombre { get; set; }
         public string Estado { get; set; } = "planificado";
+        public string? TipoAusencia { get; set; }
     }
 
     public class PublicarProgramacionDto

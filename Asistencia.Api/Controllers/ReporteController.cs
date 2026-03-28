@@ -54,18 +54,11 @@ namespace Asistencia.Api.Controllers
         {
             try
             {
-                var scope = GetAreaScope(area);
-                if (!scope.EsValido)
-                {
-                    return Forbid();
-                }
-
-                var result = await _reportesService.GetInconsistenciasAsync(scope.Area);
+                var result = await _reportesService.GetInconsistenciasAsync(area);
                 return Ok(result);
             }
             catch (Exception ex)
             {
-                // Loggear el error real aquí
                 return StatusCode(500, "Error obteniendo inconsistencias: " + ex.Message);
             }
         }
@@ -74,22 +67,15 @@ namespace Asistencia.Api.Controllers
         public async Task<IActionResult> GetResumen(
             [FromQuery] DateTime fechaInicio,
             [FromQuery] DateTime fechaFin,
-            [FromQuery] string? dni = null,
-            [FromQuery] string? area = null)
+            [FromQuery] string? dni = null)
         {
-            // Validaciones básicas
             if (fechaInicio > fechaFin)
                 return BadRequest("La fecha de inicio no puede ser mayor a la fecha fin.");
 
             try
             {
-                var scope = GetAreaScope(area);
-                if (!scope.EsValido)
-                {
-                    return Forbid();
-                }
-
-                var result = await _reportesService.GetResumenAsistenciaAsync(fechaInicio, fechaFin, dni, scope.Area);
+                var jefeId = GetJefeId();
+                var result = await _reportesService.GetResumenAsistenciaAsync(fechaInicio, fechaFin, dni, jefeId);
                 return Ok(result);
             }
             catch (Exception ex)
@@ -101,79 +87,82 @@ namespace Asistencia.Api.Controllers
         [HttpGet("tardanzas")]
         public async Task<IActionResult> GetTardanzas(
             [FromQuery] DateTime fechaInicio,
-            [FromQuery] DateTime fechaFin,
-            [FromQuery] string? area = null)
+            [FromQuery] DateTime fechaFin)
         {
             if (fechaInicio > fechaFin)
                 return BadRequest("La fecha de inicio no puede ser mayor a la fecha fin.");
 
-            var scope = GetAreaScope(area);
-            if (!scope.EsValido)
-            {
-                return Forbid();
-            }
-
-            var resultado = await _reportesService.GetTardanzasAsync(fechaInicio, fechaFin, scope.Area);
+            var jefeId = GetJefeId();
+            var resultado = await _reportesService.GetTardanzasAsync(fechaInicio, fechaFin, jefeId);
             return Ok(resultado);
         }
 
         [HttpGet("horas-extras")]
         public async Task<IActionResult> GetHorasExtras(
             [FromQuery] DateTime fechaInicio,
-            [FromQuery] DateTime fechaFin,
-            [FromQuery] string? area = null)
+            [FromQuery] DateTime fechaFin)
         {
             if (fechaInicio > fechaFin)
                 return BadRequest("La fecha de inicio no puede ser mayor a la fecha fin.");
 
-            var scope = GetAreaScope(area);
-            if (!scope.EsValido)
-            {
-                return Forbid();
-            }
-
-            var resultado = await _reportesService.GetHorasExtrasAsync(fechaInicio, fechaFin, scope.Area);
+            var jefeId = GetJefeId();
+            var resultado = await _reportesService.GetHorasExtrasAsync(fechaInicio, fechaFin, jefeId);
             return Ok(resultado);
         }
 
         [HttpGet("trabajadores-por-jefe")]
         public async Task<IActionResult> GetTrabajadoresPorJefe(
-            [FromQuery] DateTime fecha,
+            [FromQuery] string fecha,
             [FromQuery] int jefeId)
         {
             if (jefeId <= 0)
-            {
                 return BadRequest("El parámetro jefeId es obligatorio y debe ser mayor a 0.");
-            }
 
-            // Para este reporte el área se resuelve por jefeId dentro del servicio,
-            // evitando depender del claim "area" en tokens de dispositivo.
-            var resultado = await _reportesService.GetTrabajadoresPorJefeYFechaAsync(fecha, jefeId, null);
+            if (!TryParseFecha(fecha, out var fechaParsed))
+                return BadRequest("El parámetro 'fecha' no tiene un formato válido. Use dd/MM/yyyy o yyyy-MM-dd.");
+
+            var resultado = await _reportesService.GetTrabajadoresPorJefeYFechaAsync(fechaParsed, jefeId, null);
             return Ok(resultado);
         }
 
-        private (bool EsValido, string? Area) GetAreaScope(string? areaSolicitada)
+        [HttpGet("trabajadores-por-sucursal")]
+        [Authorize(Roles = "ADMIN,SUPERADMIN,SUPERVISOR")]
+        public async Task<IActionResult> GetTrabajadoresPorSucursal(
+            [FromQuery] string fecha,
+            [FromQuery] int sucursalId)
+        {
+            if (sucursalId <= 0)
+                return BadRequest("El parámetro sucursalId es obligatorio y debe ser mayor a 0.");
+
+            if (!TryParseFecha(fecha, out var fechaParsed))
+                return BadRequest("El parámetro 'fecha' no tiene un formato válido. Use dd/MM/yyyy o yyyy-MM-dd.");
+
+            var resultado = await _reportesService.GetTrabajadoresPorSucursalAsync(fechaParsed, sucursalId);
+            return Ok(resultado);
+        }
+
+        private static bool TryParseFecha(string? valor, out DateTime resultado)
+        {
+            resultado = default;
+            if (string.IsNullOrWhiteSpace(valor)) return false;
+            return DateTime.TryParseExact(valor, new[] { "dd/MM/yyyy", "yyyy-MM-dd", "MM/dd/yyyy" },
+                System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.None, out resultado);
+        }
+
+        /// <summary>
+        /// Devuelve el trabajador_id del usuario logueado.
+        /// ADMIN/SUPERVISOR → su propio trabajador_id (filtra solo sus subordinados).
+        /// SUPERADMIN → null (sin filtro, ve todos).
+        /// </summary>
+        private int? GetJefeId()
         {
             var rol = (User.FindFirst(ClaimTypes.Role)?.Value ?? string.Empty).Trim().ToUpperInvariant();
+            if (rol == "SUPERADMIN") return null;
 
-            if (rol == "SUPERADMIN" || rol == "SUPERVISOR")
-            {
-                return (true, string.IsNullOrWhiteSpace(areaSolicitada) ? null : areaSolicitada.Trim());
-            }
-
-            if (rol != "ADMIN")
-            {
-                return (false, null);
-            }
-
-            var areaAdmin = User.FindFirst("area")?.Value?.Trim();
-            if (string.IsNullOrWhiteSpace(areaAdmin))
-            {
-                return (false, null);
-            }
-
-            // Para ADMIN siempre se fuerza el área del token, ignorando query string.
-            return (true, areaAdmin);
+            var claim = User.FindFirst("trabajador_id")?.Value;
+            if (int.TryParse(claim, out var id)) return id;
+            return null;
         }
     }
 }

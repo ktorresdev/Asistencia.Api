@@ -329,146 +329,158 @@ namespace Asistencia.Services.Services
             // Todas las validaciones han sido comentadas para permitir marcar sin restricciones.
             var now = DateTime.Now;
 
-            // ── 1. Resolver contexto de horario ─────────────────────────
-            // var shiftContext = await ResolveShiftContextAsync(
-            //     marcacionRequest.IdTrabajador,
-            //     now,
-            //     includeTodayFallback: false,
-            //     includeDefaultFallback: false);
+             //── 1.Resolver contexto de horario ─────────────────────────
+             var shiftContext = await ResolveShiftContextAsync(
+                 marcacionRequest.IdTrabajador,
+                 now,
+                 includeTodayFallback: true,
+                 includeDefaultFallback: false);
 
-            // if (!shiftContext.HasAssignedShift)
-            // {
-            //     return new MarcacionResponse
-            //     {
-            //         Success = false,
-            //         Code = "ERROR_NO_TURNO",
-            //         Message = "No tiene un turno asignado para la fecha actual.",
-            //         Detail = $"Verifique asignación de turno del trabajador. [Fuente: {shiftContext.FuenteHorario}]"
-            //     };
-            // }
+            if (!shiftContext.HasAssignedShift)
+            {
+                return new MarcacionResponse
+                {
+                    Success = false,
+                    Code = "ERROR_NO_TURNO",
+                    Message = "No tiene un turno asignado para la fecha actual.",
+                    Detail = $"Verifique asignación de turno del trabajador. [Fuente: {shiftContext.FuenteHorario}]"
+                };
+            }
 
             // ── 2. Cargar trabajador y sucursal ──────────────────────────
             var trabajador = await _context.Trabajadores
                 .Include(t => t.Sucursal)
+                .Include(t => t.TrabajadorSucursales!)
+                    .ThenInclude(ts => ts.Sucursal)
                 .FirstOrDefaultAsync(t => t.Id == marcacionRequest.IdTrabajador);
 
-            // if (trabajador == null || trabajador.Sucursal == null)
-            // {
-            //     return new MarcacionResponse
-            //     {
-            //         Success = false,
-            //         Code = "ERROR_TRABAJADOR_NO_ENCONTRADO",
-            //         Message = "Trabajador no encontrado o sin centro de trabajo asignado.",
-            //         Detail = "Confirme que el IdTrabajador es correcto y tiene sucursal vinculada."
-            //     };
-            // }
+            if (trabajador == null)
+            {
+                return new MarcacionResponse
+                {
+                    Success = false,
+                    Code = "ERROR_TRABAJADOR_NO_ENCONTRADO",
+                    Message = "Trabajador no encontrado.",
+                    Detail = "Confirme que el IdTrabajador es correcto."
+                };
+            }
 
-            // if (!shiftContext.HasActiveSchedule)
-            // {
-            //     return new MarcacionResponse
-            //     {
-            //         Success = false,
-            //         Code = "ERROR_SIN_HORARIO",
-            //         Message = "No tiene un horario definido para la fecha actual.",
-            //         Detail = $"Revise la configuración de horarios para el turno asignado. [Fuente: {shiftContext.FuenteHorario}]"
-            //     };
-            // }
+            if (trabajador.Sucursal == null && trabajador.TrabajadorSucursales?.Any() != true)
+            {
+                return new MarcacionResponse
+                {
+                    Success = false,
+                    Code = "ERROR_SIN_SEDE",
+                    Message = "El trabajador no tiene ninguna sede asignada.",
+                    Detail = "Asigne al menos una sede al trabajador antes de registrar asistencia."
+                };
+            }
 
-            // if (!shiftContext.WindowStart.HasValue || !shiftContext.WindowEnd.HasValue)
-            // {
-            //     return new MarcacionResponse
-            //     {
-            //         Success = false,
-            //         Code = "ERROR_SIN_HORARIO",
-            //         Message = "No tiene un horario definido para la fecha actual.",
-            //         Detail = "Revise la configuración de horarios para el turno asignado o márquee dentro de la ventana permitida."
-            //     };
-            // }
+            if (!shiftContext.HasActiveSchedule)
+            {
+                return new MarcacionResponse
+                {
+                    Success = false,
+                    Code = "ERROR_SIN_HORARIO",
+                    Message = "No tiene un horario definido para la fecha actual.",
+                    Detail = $"Revise la configuración de horarios para el turno asignado. [Fuente: {shiftContext.FuenteHorario}]"
+                };
+            }
 
-            // var windowStart = shiftContext.WindowStart.Value;
-            // var windowEnd = shiftContext.WindowEnd.Value;
+            if (!shiftContext.WindowStart.HasValue || !shiftContext.WindowEnd.HasValue)
+            {
+                return new MarcacionResponse
+                {
+                    Success = false,
+                    Code = "ERROR_SIN_HORARIO",
+                    Message = "No tiene un horario definido para la fecha actual.",
+                    Detail = "Revise la configuración de horarios para el turno asignado o márquee dentro de la ventana permitida."
+                };
+            }
 
-            // ── 3. Validar geolocalización ───────────────────────────────
-            // var sucursalActiva = await ResolverSucursalActivaAsync(trabajador.Id, trabajador.Sucursal);
-            // var geofenceSucursal = sucursalActiva ?? trabajador.Sucursal;
+            var windowStart = shiftContext.WindowStart.Value;
+            var windowEnd = shiftContext.WindowEnd.Value;
 
-            // var distancia = CalcularDistancia(
-            //     marcacionRequest.Latitud, marcacionRequest.Longitud,
-            //     (double)(geofenceSucursal.LatitudCentro ?? 0),
-            //     (double)(geofenceSucursal.LongitudCentro ?? 0));
+             //── 3.Validar geolocalización ───────────────────────────────
+             var (geofenceSucursal, distancia, ubicacionValida) = ResolverSucursalPorUbicacion(
+                trabajador, marcacionRequest.Latitud, marcacionRequest.Longitud);
 
-            // bool ubicacionValida = distancia <= (geofenceSucursal.PerimetroM ?? 0);
+            if (!ubicacionValida && trabajador.MarcajeEnZona)
+            {
+                return new MarcacionResponse
+                {
+                    Success = false,
+                    Code = "ERROR_FUERA_ZONA",
+                    Message = "No se encuentra dentro del área de ninguna sede asignada.",
+                    Detail = $"Sede más cercana: \"{geofenceSucursal.NombreSucursal}\" a {distancia:F0} m."
+                };
+            }
 
-            // if (!ubicacionValida && trabajador.MarcajeEnZona)
-            // {
-            //     return new MarcacionResponse
-            //     {
-            //         Success = false,
-            //         Code = "ERROR_FUERA_ZONA",
-            //         Message = "Marcación fuera del área permitida.",
-            //         Detail = $"Se encuentra a {distancia:F2} m del centro de trabajo."
-            //     };
-            // }
+             //── 4.Determinar tipo de marcación(ENTRADA / SALIDA) ───────
+             var existingMarksToday = await _context.MarcacionesAsistencia
+                 .Where(m =>
+                     m.TrabajadorId == marcacionRequest.IdTrabajador &&
+                     m.FechaHora >= windowStart &&
+                     m.FechaHora <= windowEnd)
+                 .OrderBy(m => m.FechaHora)
+                 .ToListAsync();
 
-            // ── 4. Determinar tipo de marcación (ENTRADA / SALIDA) ───────
-            // var existingMarksToday = await _context.MarcacionesAsistencia
-            //     .Where(m =>
-            //         m.TrabajadorId == marcacionRequest.IdTrabajador &&
-            //         m.FechaHora >= windowStart &&
-            //         m.FechaHora <= windowEnd)
-            //     .OrderBy(m => m.FechaHora)
-            //     .ToListAsync();
+            string tipoMarcacion;
+            if (!existingMarksToday.Any())
+            {
+                tipoMarcacion = "ENTRADA";
+            }
+            else
+            {
+                var lastMark = existingMarksToday.Last();
+                if (string.Equals(lastMark.TipoMarcacion, "ENTRADA", StringComparison.OrdinalIgnoreCase))
+                {
+                    tipoMarcacion = "SALIDA";
+                }
+                else
+                {
+                    return new MarcacionResponse
+                    {
+                        Success = false,
+                        Code = "ERROR_SALIDA_REGISTRADA",
+                        Message = "Ya registró su salida hoy; no se permite nueva entrada sin configuración de turnos adicionales.",
+                        Detail = "Si corresponde, configure turnos adicionales o permita reingresos."
+                    };
+                }
+            }
 
-            // string tipoMarcacion;
-            // if (!existingMarksToday.Any())
-            // {
-            //     tipoMarcacion = "ENTRADA";
-            // }
-            // else
-            // {
-            //     var lastMark = existingMarksToday.Last();
-            //     if (string.Equals(lastMark.TipoMarcacion, "ENTRADA", StringComparison.OrdinalIgnoreCase))
-            //     {
-            //         tipoMarcacion = "SALIDA";
-            //     }
-            //     else
-            //     {
-            //         return new MarcacionResponse
-            //         {
-            //             Success = false,
-            //             Code = "ERROR_SALIDA_REGISTRADA",
-            //             Message = "Ya registró su salida hoy; no se permite nueva entrada sin configuración de turnos adicionales.",
-            //             Detail = "Si corresponde, configure turnos adicionales o permita reingresos."
-            //         };
-            //     }
-            // }
+             //── 5.Evitar duplicados recientes(ventana 2 minutos) ───────
+             var existeMarcacionIgual = existingMarksToday.Any(m =>
+                 m.TipoMarcacion == tipoMarcacion &&
+                 Math.Abs((m.FechaHora - now).TotalSeconds) < 120);
 
-            // ── 5. Evitar duplicados recientes (ventana 2 minutos) ───────
-            // var existeMarcacionIgual = existingMarksToday.Any(m =>
-            //     m.TipoMarcacion == tipoMarcacion &&
-            //     Math.Abs((m.FechaHora - now).TotalSeconds) < 120);
-
-            // if (existeMarcacionIgual)
-            // {
-            //     return new MarcacionResponse
-            //     {
-            //         Success = false,
-            //         Code = "ERROR_DUPLICADO_RECIENTE",
-            //         Message = $"Ya existe una marcación de {tipoMarcacion} registrada recientemente.",
-            //         Detail = "Hay una marcación del mismo tipo dentro de los últimos 120 segundos."
-            //     };
-            // }
+            if (existeMarcacionIgual)
+            {
+                return new MarcacionResponse
+                {
+                    Success = false,
+                    Code = "ERROR_DUPLICADO_RECIENTE",
+                    Message = $"Ya existe una marcación de {tipoMarcacion} registrada recientemente.",
+                    Detail = "Hay una marcación del mismo tipo dentro de los últimos 120 segundos."
+                };
+            }
 
             // ── 6. Guardar marcación ─────────────────────────────────────
+            // SucursalId: sede de pertenencia del trabajador (para reportes y agrupación).
+            // Si no tiene sede principal definida, se usa la sede donde marcó como fallback.
+            var sucursalPertenencia = trabajador.SucursalId ?? geofenceSucursal.Id;
+
             var nuevaMarcacion = new MarcacionAsistencia
             {
                 TrabajadorId = marcacionRequest.IdTrabajador,
+                SucursalId = sucursalPertenencia,             // sede de pertenencia (reportes)
+                SucursalMarcacionId = geofenceSucursal.Id,    // sede donde marcó físicamente (auditoría)
                 FechaHora = now,
                 Latitud = (decimal)marcacionRequest.Latitud,
                 Longitud = (decimal)marcacionRequest.Longitud,
-                TipoMarcacion = "ENTRADA", // Siempre ENTRADA para pruebas sin validación
+                TipoMarcacion = tipoMarcacion,
                 FotoUrl = marcacionRequest.FotoUrl,
-                UbicacionValida = true // Siempre true para pruebas sin validación
+                UbicacionValida = ubicacionValida
             };
 
             _context.MarcacionesAsistencia.Add(nuevaMarcacion);
@@ -478,7 +490,7 @@ namespace Asistencia.Services.Services
             {
                 Success = true,
                 Code = "SUCCESS_MARCACION_OK",
-                Message = $"Marcación de ENTRADA registrada con éxito a las {nuevaMarcacion.FechaHora:HH:mm:ss}.",
+                Message = $"Marcación de {tipoMarcacion} registrada con éxito a las {nuevaMarcacion.FechaHora:HH:mm:ss}.",
                 Data = nuevaMarcacion
             };
         }
@@ -573,54 +585,72 @@ namespace Asistencia.Services.Services
         }
 
         /// <summary>
-        /// Si el usuario es ADMIN y envía el header X-Sucursal-Activa,
-        /// verifica que el trabajador tenga permiso en esa sucursal y la retorna.
-        /// Si no, retorna la sucursal por defecto del trabajador.
+        /// Evalúa automáticamente en cuál sede asignada está el trabajador según su GPS.
+        /// - Si está dentro del geofence de alguna → usa la más cercana de esas.
+        /// - Si está fuera de todas → devuelve la más cercana con dentroDeZona=false.
         /// </summary>
-        private async Task<SucursalCentro?> ResolverSucursalActivaAsync(
-            int trabajadorId, SucursalCentro? sucursalPorDefecto)
+        private (SucursalCentro sucursal, double distanciaM, bool dentroDeZona) ResolverSucursalPorUbicacion(
+            Trabajador trabajador, double lat, double lon)
         {
-            var httpContext = _httpContextAccessor.HttpContext;
-            if (httpContext == null) return sucursalPorDefecto;
+            var today = DateOnly.FromDateTime(DateTime.Today);
 
-            var role = httpContext.User
-                .FindFirst(ClaimTypes.Role)?.Value?.Trim().ToUpperInvariant();
-            if (role != "ADMIN") return sucursalPorDefecto;
+            // Construir lista de sedes activas
+            var sedes = new List<SucursalCentro>();
 
-            if (!httpContext.Request.Headers.TryGetValue("X-Sucursal-Activa", out var headerValue)
-                || !int.TryParse(headerValue.ToString(), out var sucursalActivaId)
-                || sucursalActivaId <= 0)
-                return sucursalPorDefecto;
+            if (trabajador.Sucursal != null)
+                sedes.Add(trabajador.Sucursal);
 
-            var sucursalActiva = await _context.Database
-                .SqlQueryRaw<SucursalGeofenceDto>(@"
-                    SELECT TOP 1
-                        s.id_sucursal      AS IdSucursal,
-                        s.nombre_sucursal  AS NombreSucursal,
-                        s.latitud_centro   AS LatitudCentro,
-                        s.longitud_centro  AS LongitudCentro,
-                        s.perimetro_m      AS PerimetroM
-                    FROM dbo.TRABAJADOR_SUCURSALES ts
-                    INNER JOIN dbo.SUCURSAL s ON s.id_sucursal = ts.id_sucursal
-                    WHERE ts.id_trabajador   = {0}
-                      AND ts.id_sucursal     = {1}
-                      AND ts.puede_gestionar = 1
-                      AND (ts.fecha_fin IS NULL OR ts.fecha_fin >= CAST(GETDATE() AS DATE))",
-                    trabajadorId, sucursalActivaId)
-                .FirstOrDefaultAsync();
-
-            if (sucursalActiva == null) return sucursalPorDefecto;
-
-            return new SucursalCentro
+            if (trabajador.TrabajadorSucursales != null)
             {
-                Id = sucursalActiva.IdSucursal,
-                NombreSucursal = string.IsNullOrWhiteSpace(sucursalActiva.NombreSucursal)
-                    ? "Sucursal activa"
-                    : sucursalActiva.NombreSucursal,
-                LatitudCentro = sucursalActiva.LatitudCentro,
-                LongitudCentro = sucursalActiva.LongitudCentro,
-                PerimetroM = sucursalActiva.PerimetroM
-            };
+                var adicionales = trabajador.TrabajadorSucursales
+                    .Where(ts =>
+                        ts.SucursalId != trabajador.SucursalId &&
+                        ts.FechaInicio <= today &&
+                        (ts.FechaFin == null || ts.FechaFin.Value >= today) &&
+                        ts.Sucursal != null)
+                    .Select(ts => ts.Sucursal!);
+                sedes.AddRange(adicionales);
+            }
+
+            SucursalCentro? mejorSede = null;
+            double mejorDistancia = double.MaxValue;
+            bool dentroDeZona = false;
+
+            foreach (var sede in sedes)
+            {
+                if (sede.LatitudCentro == null || sede.LongitudCentro == null) continue;
+
+                var dist = CalcularDistancia(lat, lon,
+                    (double)sede.LatitudCentro, (double)sede.LongitudCentro);
+
+                var perimetro = sede.PerimetroM ?? 0;
+                var enEstaSede = dist <= perimetro;
+
+                if (enEstaSede && (!dentroDeZona || dist < mejorDistancia))
+                {
+                    // Dentro de esta sede y es la más cercana encontrada dentro
+                    mejorSede = sede;
+                    mejorDistancia = dist;
+                    dentroDeZona = true;
+                }
+                else if (!dentroDeZona && dist < mejorDistancia)
+                {
+                    // Aún no está en ninguna, guardar la más cercana
+                    mejorSede = sede;
+                    mejorDistancia = dist;
+                }
+            }
+
+            var sucursalFinal = mejorSede ?? trabajador.Sucursal!;
+            var distanciaFinal = mejorSede != null
+                ? mejorDistancia
+                : (trabajador.Sucursal != null
+                    ? CalcularDistancia(lat, lon,
+                        (double)(trabajador.Sucursal.LatitudCentro ?? 0),
+                        (double)(trabajador.Sucursal.LongitudCentro ?? 0))
+                    : 0);
+
+            return (sucursalFinal, distanciaFinal, dentroDeZona);
         }
 
         /// <summary>

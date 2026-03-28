@@ -35,12 +35,15 @@ namespace Asistencia.Services.Services
                 throw new KeyNotFoundException($"Turno con ID {request.TurnoId} no encontrado.");
             }
 
-            // Si el turno es rotativo, preferir exigir horarioTurnoId
+            // Para turnos FIJOS se exige un HorarioTurnoId (su horario es permanente).
+            // Para turnos ROTATIVOS es opcional: si se provee actúa como fallback cuando
+            // no existe programación semanal (PTS) para el día; si no se provee, la marcación
+            // dependerá exclusivamente de la programación semanal.
             var nombreTipo = turno.TipoTurno?.NombreTipo ?? string.Empty;
             var esRotativo = nombreTipo.ToUpperInvariant().Contains("ROT");
-            if (esRotativo && !request.HorarioTurnoId.HasValue)
+            if (!esRotativo && !request.HorarioTurnoId.HasValue)
             {
-                throw new ArgumentException("Para turnos rotativos se requiere HorarioTurnoId.");
+                throw new ArgumentException("Para turnos fijos se requiere HorarioTurnoId.");
             }
 
             // Si se suministra HorarioTurnoId, validar que exista y pertenezca al turno
@@ -208,12 +211,31 @@ namespace Asistencia.Services.Services
                 throw new KeyNotFoundException($"Trabajador con ID {request.TrabajadorId} no encontrado.");
             }
 
-            var turnoExiste = await _context.Turnos.AnyAsync(t => t.Id == request.TurnoId);
-            if (!turnoExiste)
+            var turno = await _context.Turnos.Include(t => t.TipoTurno).FirstOrDefaultAsync(t => t.Id == request.TurnoId);
+            if (turno == null)
             {
                 throw new KeyNotFoundException($"Turno con ID {request.TurnoId} no encontrado.");
             }
-        
+
+            // Validar consistencia HorarioTurnoId según tipo de turno
+            var nombreTipoUpd = turno.TipoTurno?.NombreTipo ?? string.Empty;
+            var esRotativoUpd = nombreTipoUpd.ToUpperInvariant().Contains("ROT");
+            if (!esRotativoUpd && !request.HorarioTurnoId.HasValue)
+            {
+                throw new ArgumentException("Para turnos fijos se requiere HorarioTurnoId.");
+            }
+
+            // Si se provee HorarioTurnoId, validar que exista y pertenezca al turno
+            if (request.HorarioTurnoId.HasValue)
+            {
+                var horarioValido = await _context.HorariosTurno
+                    .AnyAsync(h => h.Id == request.HorarioTurnoId.Value && h.TurnoId == request.TurnoId);
+                if (!horarioValido)
+                {
+                    throw new KeyNotFoundException($"HorarioTurno con ID {request.HorarioTurnoId} no encontrado o no pertenece al turno {request.TurnoId}.");
+                }
+            }
+
             existingAsignacion.TrabajadorId = request.TrabajadorId;
             existingAsignacion.TurnoId = request.TurnoId;
             existingAsignacion.HorarioTurnoId = request.HorarioTurnoId;

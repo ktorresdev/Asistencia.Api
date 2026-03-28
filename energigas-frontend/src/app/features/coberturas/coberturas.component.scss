@@ -1,0 +1,31 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  animation: fadeUp .22s ease both;
+}
+.check-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--txt);
+
+  input[type="checkbox"] {
+    width: 16px; height: 16px;
+    accent-color: var(--acc);
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+}
+
+.nav-badge {
+  margin-left: 6px; font-size: 10px; font-family: var(--mono);
+  background: var(--red-bg); color: var(--red);
+  padding: 1px 6px; border-radius: 20px;
+  animation: scaleIn .25s cubic-bezier(.34,1.56,.64,1) both;
+}

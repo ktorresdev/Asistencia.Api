@@ -1,0 +1,55 @@
+<div style="display:contents">
+  <div class="toolbar">
+    <div class="srch-wrap"><span class="srch-ico">⌕</span><input class="srch" type="text" placeholder="Buscar..." [ngModel]="searchQuery()" (ngModelChange)="onSearch($event)" /></div>
+    <span style="flex:1"></span>
+    <button class="btn btn-primary btn-sm" (click)="openNew()">+ Nueva sede</button>
+    @if (loading()) { <span class="spin"></span> }
+  </div>
+  <div class="grid-outer">
+    <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th>Nombre</th><th>Dirección</th><th>Lat</th><th>Lng</th><th>Radio (m)</th><th>Acciones</th></tr></thead>
+      <tbody>
+        @for (s of paginated(); track s.id) {
+          <tr>
+            <td style="font-weight:600">{{ s.nombreSucursal }}</td>
+            <td>{{ s.direccion ?? '—' }}</td>
+            <td style="font-family:var(--mono);font-size:11px">{{ s.latitudCentro ?? '—' }}</td>
+            <td style="font-family:var(--mono);font-size:11px">{{ s.longitudCentro ?? '—' }}</td>
+            <td style="font-family:var(--mono);font-size:11px">{{ s.perimetroM ?? '—' }}</td>
+            <td style="display:flex;gap:4px">
+              <button class="btn btn-sm" (click)="openEdit(s)">Editar</button>
+              <button class="btn btn-sm btn-danger" (click)="delete(s.id)">Eliminar</button>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+    </div><!-- /tbl-wrap -->
+  </div>
+  <div class="pagination">
+    <button class="btn btn-sm" [disabled]="page() <= 1" (click)="page.set(page()-1)">&#8249;</button>
+    <span class="page-info">{{ page() }} / {{ totalPages() }} · {{ filtered().length }} registros</span>
+    <button class="btn btn-sm" [disabled]="page() >= totalPages()" (click)="page.set(page()+1)">&#8250;</button>
+  </div>
+</div>
+<div class="overlay" [class.open]="drawerOpen()" (click)="close()"></div>
+<div class="drawer" [class.open]="drawerOpen()">
+  <div class="drawer-hdr">
+    <span class="drawer-title">{{ editingId() ? 'Editar sede' : 'Nueva sede' }}</span>
+    <button class="btn-icon" (click)="close()">✕</button>
+  </div>
+  <div class="drawer-body">
+    <div class="fld"><label class="fld-lbl">Nombre *</label><input class="inp" [ngModel]="form().nombreSucursal" (ngModelChange)="form.update(f=>({...f,nombreSucursal:$event}))" /></div>
+    <div class="fld"><label class="fld-lbl">Dirección</label><input class="inp" [ngModel]="form().direccion" (ngModelChange)="form.update(f=>({...f,direccion:$event}))" /></div>
+    <div class="form-row">
+      <div class="fld"><label class="fld-lbl">Latitud</label><input class="inp" type="number" [ngModel]="form().latitudCentro" (ngModelChange)="form.update(f=>({...f,latitudCentro:+$event}))" /></div>
+      <div class="fld"><label class="fld-lbl">Longitud</label><input class="inp" type="number" [ngModel]="form().longitudCentro" (ngModelChange)="form.update(f=>({...f,longitudCentro:+$event}))" /></div>
+    </div>
+    <div class="fld"><label class="fld-lbl">Radio geocerca (metros)</label><input class="inp" type="number" [ngModel]="form().perimetroM" (ngModelChange)="form.update(f=>({...f,perimetroM:+$event}))" /></div>
+  </div>
+  <div class="drawer-ftr">
+    <button class="btn btn-primary" (click)="save()">Guardar</button>
+    <button class="btn" (click)="close()">Cancelar</button>
+  </div>
+</div>

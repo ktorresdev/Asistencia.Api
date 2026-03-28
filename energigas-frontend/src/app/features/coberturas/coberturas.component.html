@@ -1,0 +1,197 @@
+<div style="display:contents">
+
+  <!-- TOOLBAR -->
+  <div class="toolbar">
+    <button class="pill" [class.on]="cobFil()==='todos'" (click)="cobFil.set('todos')">Todos</button>
+    <button class="pill" [class.on]="cobFil()==='PENDIENTE'" (click)="cobFil.set('PENDIENTE')">Pendientes <span class="nav-badge" *ngIf="pendingCount()">{{ pendingCount() }}</span></button>
+    <button class="pill" [class.on]="cobFil()==='APROBADO'" (click)="cobFil.set('APROBADO')">Aprobados</button>
+    <button class="pill" [class.on]="cobFil()==='RECHAZADO'" (click)="cobFil.set('RECHAZADO')">Rechazados</button>
+    <span style="flex:1"></span>
+    @if (auth.isAdminOrSupervisor()) {
+      <button class="btn btn-primary btn-sm" (click)="openDrawer()">+ Nueva cobertura</button>
+    }
+    @if (loading()) { <span class="spin"></span> }
+  </div>
+
+  <!-- LIST -->
+  <div class="grid-outer" style="overflow-y:auto">
+    @if (!filtered().length) {
+      <div style="padding:40px;text-align:center;color:var(--txt3)">No hay registros</div>
+    }
+    @for (c of filtered(); track getCobId(c)) {
+      <div class="cob-item">
+        <div class="cob-badge" [class]="'cob-badge cb-' + (c.tipoCobertura ?? c.tipo ?? 'COBERTURA')">
+          {{ c.tipoCobertura ?? c.tipo ?? '—' }}
+        </div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+            {{ getWorkerName(c.idTrabajadorCubre) }} → {{ getWorkerName(c.idTrabajadorAusente) }}
+          </div>
+          <div style="font-size:11px;color:var(--txt2);font-family:var(--mono);margin-top:2px">
+            {{ c.fecha | date:'dd/MM/yyyy' }} · {{ getHtName(c.idHorarioTurnoOriginal) }}
+            @if (c.fechaSwapDevolucion) { · Descanso compensatorio: {{ c.fechaSwapDevolucion | date:'dd/MM' }} }
+          </div>
+        </div>
+        @if (c.estado === 'PENDIENTE' && auth.isAdminOrSupervisor()) {
+          <div style="display:flex;gap:5px">
+            <button class="btn btn-success btn-sm" (click)="aprobar(getCobId(c))">Aprobar</button>
+            <button class="btn btn-danger btn-sm" (click)="rechazar(getCobId(c))">Rechazar</button>
+          </div>
+        } @else {
+          <span [class]="getEstadoCls(c.estado)">{{ c.estado }}</span>
+        }
+      </div>
+    }
+  </div>
+</div>
+
+<!-- OVERLAY / DRAWER -->
+<div class="overlay" [class.open]="drawerOpen()" (click)="closeDrawer()"></div>
+<div class="drawer" [class.open]="drawerOpen()">
+  <div class="drawer-hdr">
+    <span class="drawer-title">Nueva cobertura / operación</span>
+    <button class="btn-icon" (click)="closeDrawer()">✕</button>
+  </div>
+  <div class="drawer-body">
+    <!-- Tipo -->
+    <div class="fld">
+      <div class="fld-lbl">Tipo de operación</div>
+      <div class="tipo-sel">
+        @for (t of TIPOS; track t) {
+          <div class="tipo-opt" [class.sel]="cobTipo()===t" (click)="cobTipo.set(t)">
+            <div style="font-size:18px">{{ t==='COBERTURA'?'🛡':'🔄' }}</div>
+            <div style="font-size:10px;font-weight:700;font-family:var(--mono)">{{ t }}</div>
+          </div>
+        }
+      </div>
+    </div>
+
+    <!-- Toggle reemplazo / turno adicional -->
+    @if (cobTipo() === 'COBERTURA') {
+      <div class="fld">
+        <label class="check-row">
+          <input type="checkbox" [ngModel]="esReemplazo()" (ngModelChange)="esReemplazo.set($event)" />
+          <span>Es un reemplazo (el trabajador faltó)</span>
+        </label>
+        <div style="font-size:10px;color:var(--txt3);margin-top:4px;padding-left:22px">
+          @if (esReemplazo()) {
+            El trabajador faltante quedará registrado y quien lo cubre recibirá el turno extra.
+          } @else {
+            Se asignará un turno adicional sin registrar falta a nadie.
+          }
+        </div>
+      </div>
+    }
+
+    <!-- Motivo solo para COBERTURA con reemplazo -->
+    @if (cobTipo() === 'COBERTURA' && esReemplazo()) {
+      <div class="fld">
+        <div class="fld-lbl">Motivo de falta del ausente</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          @for (m of MOTIVOS; track m.k) {
+            <div class="tipo-opt" [class.sel]="cobMotivo()===m.k" (click)="cobMotivo.set(m.k)" style="padding:8px 10px">
+              <div style="font-size:10px;font-weight:700;font-family:var(--mono)">{{ m.label }}</div>
+              <div style="font-size:9px;color:var(--txt2)">{{ m.sub }}</div>
+            </div>
+          }
+        </div>
+      </div>
+    }
+
+    <div class="form-row">
+      <div class="fld">
+        <label class="fld-lbl">Fecha</label>
+        <input type="date" class="inp" [ngModel]="cfFecha()" (ngModelChange)="cfFecha.set($event)" />
+      </div>
+      <div class="fld">
+        <label class="fld-lbl">Turno que se va a cubrir</label>
+        <select class="sel" [ngModel]="cfHt()" (ngModelChange)="cfHt.set($event ? +$event : null)">
+          <option [value]="null">Selecciona un turno</option>
+          @for (h of horariosTurno(); track h.id) { <option [value]="h.id">{{ h.nombreHorario }}</option> }
+        </select>
+      </div>
+    </div>
+
+    <div class="form-row">
+      <!-- AFECTADO (siempre requerido — la BD no permite null) -->
+      <div class="fld">
+        <label class="fld-lbl">
+          @if (cobTipo() === 'CAMBIO') { Trabajador B (recibe el turno) }
+          @else if (esReemplazo()) { Trabajador ausente }
+          @else { Trabajador al que se asigna cobertura }
+        </label>
+        <div class="srch-sel">
+          <input class="inp" type="text" placeholder="Buscar trabajador..."
+            [ngModel]="ausenteQuery()"
+            (ngModelChange)="ausenteQuery.set($event); ausenteOpen.set(true)"
+            (focus)="ausenteOpen.set(true)"
+            (blur)="closeDrops()" />
+          @if (cfAusente()) {
+            <span class="srch-sel-tag">
+              {{ getWorkerName(cfAusente()) }}
+              <button (mousedown)="cfAusente.set(0); ausenteQuery.set('')">✕</button>
+            </span>
+          }
+          @if (ausenteOpen() && filteredAusente().length) {
+            <div class="srch-drop">
+              @for (w of filteredAusente(); track w.id) {
+                <div class="srch-opt" (mousedown)="selectAusente(w)">
+                  <span>{{ w.name }}</span>
+                  <span class="srch-opt-meta">{{ w.dni }} · {{ w.tipo }}</span>
+                </div>
+              }
+            </div>
+          }
+        </div>
+      </div>
+      <!-- QUIEN CUBRE -->
+      <div class="fld">
+        <label class="fld-lbl">{{ cobTipo()==='CAMBIO' ? 'Trabajador A (cede su turno)' : 'Trabajador que cubre' }}</label>
+        <div class="srch-sel">
+          <input class="inp" type="text" placeholder="Buscar trabajador..."
+            [ngModel]="cubreQuery()"
+            (ngModelChange)="cubreQuery.set($event); cubreOpen.set(true)"
+            (focus)="cubreOpen.set(true)"
+            (blur)="closeDrops()" />
+          @if (cfCubre()) {
+            <span class="srch-sel-tag">
+              {{ getWorkerName(cfCubre()!) }}
+              <button (mousedown)="clearCubre()">✕</button>
+            </span>
+          }
+          @if (cubreOpen() && filteredCubre().length) {
+            <div class="srch-drop">
+              @for (w of filteredCubre(); track w.id) {
+                <div class="srch-opt" (mousedown)="selectCubre(w)">
+                  <span>{{ w.name }}</span>
+                  <span class="srch-opt-meta">{{ w.dni }} · {{ w.tipo }}</span>
+                </div>
+              }
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+
+    @if (cobTipo() === 'COBERTURA') {
+      <div class="fld">
+        <label class="fld-lbl">
+          ¿Cuándo se le devuelve el descanso?
+          <span style="font-weight:400;color:var(--txt3)">(opcional)</span>
+        </label>
+        <input type="date" class="inp" [ngModel]="cfDev()" (ngModelChange)="cfDev.set($event)" />
+        @if (cfDev()) {
+          <div style="font-size:11px;color:var(--txt2);margin-top:4px">
+            El {{ cfDev() | date:'dd/MM/yyyy' }} se le asignará automáticamente un día de descanso compensatorio.
+          </div>
+        }
+      </div>
+    }
+
+    <div class="info-box" [innerHTML]="COB_MSGS[cobTipo()]"></div>
+  </div>
+  <div class="drawer-ftr">
+    <button class="btn btn-primary" (click)="save()">Guardar</button>
+    <button class="btn" (click)="closeDrawer()">Cancelar</button>
+  </div>
+</div>

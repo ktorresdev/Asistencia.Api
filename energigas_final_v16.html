@@ -1,0 +1,2692 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>ENERGIGAS · Control de Asistencia v3</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--sans:'Outfit',sans-serif;--mono:'JetBrains Mono',monospace}
+[data-theme=light]{--bg:#eef1f8;--surf:#fff;--surf2:#f4f6fc;--surf3:#e8ecf5;--brd:rgba(0,0,0,.07);--brd2:rgba(0,0,0,.13);--txt:#0d1117;--txt2:#4b5a74;--txt3:#9ba8be;--acc:#1d6ef5;--acc2:#1558d6;--acc-bg:rgba(29,110,245,.08);--grn:#059669;--grn-bg:rgba(5,150,105,.1);--amb:#b45309;--amb-bg:rgba(180,83,9,.1);--red:#dc2626;--red-bg:rgba(220,38,38,.1);--pur:#7c3aed;--pur-bg:rgba(124,58,237,.1);--tea:#0891b2;--tea-bg:rgba(8,145,178,.1);--shd:0 1px 4px rgba(0,0,0,.1)}
+[data-theme=dark]{--bg:#090c14;--surf:#101520;--surf2:#171d2c;--surf3:#1e2540;--brd:rgba(255,255,255,.07);--brd2:rgba(255,255,255,.12);--txt:#e2e8f8;--txt2:#7d8fad;--txt3:#3d4f6a;--acc:#4f8ef7;--acc2:#3b7de8;--acc-bg:rgba(79,142,247,.1);--grn:#34d399;--grn-bg:rgba(52,211,153,.1);--amb:#fbbf24;--amb-bg:rgba(251,191,36,.1);--red:#f87171;--red-bg:rgba(248,113,113,.1);--pur:#a78bfa;--pur-bg:rgba(167,139,250,.1);--tea:#2dd4bf;--tea-bg:rgba(45,212,191,.1);--shd:0 2px 8px rgba(0,0,0,.4)}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;font-family:var(--sans);background:var(--bg);color:var(--txt);font-size:14px;-webkit-font-smoothing:antialiased}
+::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-thumb{background:var(--brd2);border-radius:10px}
+/* LOGIN */
+.login-wrap{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px}
+.login-card{background:var(--surf);border:1px solid var(--brd2);border-radius:16px;padding:40px 36px;width:100%;max-width:400px;box-shadow:var(--shd)}
+.login-logo{font-size:26px;font-weight:700;text-align:center;margin-bottom:6px}
+.login-logo em{color:var(--acc);font-style:normal}
+.login-sub{text-align:center;color:var(--txt2);font-size:13px;margin-bottom:28px}
+.err-box{background:var(--red-bg);color:var(--red);border:1px solid rgba(248,113,113,.3);border-radius:8px;padding:10px 14px;font-size:12px;margin-bottom:14px;display:none}
+/* SHELL */
+.shell{display:grid;grid-template-columns:222px 1fr;grid-template-rows:54px 1fr;height:100vh;overflow:hidden}
+.hidden{display:none!important}
+/* SIDEBAR */
+.sidebar{grid-row:1/3;background:var(--surf);border-right:1px solid var(--brd);display:flex;flex-direction:column;overflow:hidden}
+.logo-zone{padding:15px 18px;border-bottom:1px solid var(--brd);flex-shrink:0}
+.logo{font-size:17px;font-weight:700}.logo em{color:var(--acc);font-style:normal}
+.logo-sub{font-size:10px;color:var(--txt3);font-family:var(--mono);margin-top:2px}
+.nav{flex:1;overflow-y:auto;padding:8px}
+.nav-sec{font-size:9px;color:var(--txt3);font-family:var(--mono);letter-spacing:.14em;text-transform:uppercase;padding:12px 10px 4px}
+.nav-item{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:500;color:var(--txt2);transition:all .15s;border:1px solid transparent;margin-bottom:1px;user-select:none}
+.nav-item:hover{background:var(--surf2);color:var(--txt)}
+.nav-item.active{background:var(--acc-bg);color:var(--acc);border-color:rgba(79,142,247,.2)}
+.nav-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.nav-badge{margin-left:auto;font-size:10px;font-family:var(--mono);background:var(--red-bg);color:var(--red);padding:1px 6px;border-radius:20px}
+.sidebar-btm{padding:10px;border-top:1px solid var(--brd);flex-shrink:0}
+.user-pill{display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--surf2);border-radius:8px;border:1px solid var(--brd)}
+.avatar{width:28px;height:28px;border-radius:50%;background:var(--acc-bg);color:var(--acc);font-size:11px;font-weight:600;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+/* TOPBAR */
+.topbar{background:var(--surf);border-bottom:1px solid var(--brd);display:flex;align-items:center;padding:0 20px;gap:12px}
+.pg-title{font-size:14px;font-weight:600;white-space:nowrap}
+.topbar-gap{flex:1}
+.icon-btn{width:32px;height:32px;display:flex;align-items:center;justify-content:center;border-radius:8px;background:var(--surf2);border:1px solid var(--brd);color:var(--txt2);font-size:15px;cursor:pointer;transition:all .15s;font-family:var(--sans)}
+.icon-btn:hover{background:var(--surf3)}
+.logout-btn{font-size:12px;color:var(--red);cursor:pointer;padding:5px 11px;border-radius:6px;border:1px solid var(--red-bg);background:transparent;font-family:var(--sans);transition:all .15s}
+.logout-btn:hover{background:var(--red-bg)}
+/* WEEK NAV */
+.wk-nav{display:flex;align-items:center;gap:5px;background:var(--surf2);border:1px solid var(--brd);border-radius:8px;padding:3px 6px}
+.wk-btn{width:24px;height:24px;border:none;background:transparent;color:var(--txt2);cursor:pointer;border-radius:5px;font-size:14px;transition:all .15s}
+.wk-btn:hover{background:var(--surf3);color:var(--txt)}
+.wk-lbl{font-family:var(--mono);font-size:11px;color:var(--txt);min-width:172px;text-align:center;font-weight:500}
+/* MAIN */
+.main-c{overflow:hidden;display:flex;flex-direction:column}
+.page{display:none;flex:1;overflow:hidden;flex-direction:column}
+.page.active{display:flex;animation:fadeUp .18s ease}
+@keyframes fadeUp{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+/* TOOLBAR */
+.toolbar{display:flex;align-items:center;gap:8px;padding:9px 20px;border-bottom:1px solid var(--brd);background:var(--surf);flex-shrink:0;flex-wrap:wrap}
+.srch-wrap{position:relative;flex:1;max-width:260px}
+.srch-ico{position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--txt3);font-size:13px;pointer-events:none}
+.srch{width:100%;padding:6px 9px 6px 28px;background:var(--surf2);border:1px solid var(--brd);border-radius:8px;color:var(--txt);font-size:12px;font-family:var(--sans);outline:none;transition:border .15s}
+.srch:focus{border-color:var(--acc)}
+/* BTNS */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:5px;padding:7px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;border:1px solid var(--brd2);background:transparent;color:var(--txt2);font-family:var(--sans)}
+.btn:hover{background:var(--surf2);color:var(--txt)}
+.btn:active{transform:scale(.97)}
+.btn:disabled{opacity:.4;cursor:not-allowed;transform:none}
+.btn-primary{background:var(--acc);color:#fff;border-color:transparent}
+.btn-primary:hover{background:var(--acc2);color:#fff}
+.btn-sm{padding:5px 11px;font-size:11px}
+.btn-danger{color:var(--red);border-color:var(--red-bg)}
+.btn-danger:hover{background:var(--red-bg)}
+.btn-success{color:var(--grn);border-color:var(--grn-bg)}
+.btn-success:hover{background:var(--grn-bg)}
+.pill{padding:4px 11px;border:1px solid var(--brd);border-radius:20px;font-size:11px;font-weight:500;cursor:pointer;background:transparent;color:var(--txt2);transition:all .15s;font-family:var(--sans)}
+.pill:hover{border-color:var(--brd2);color:var(--txt)}
+.pill.on{background:var(--acc-bg);color:var(--acc);border-color:rgba(79,142,247,.35)}
+/* STATS */
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);border-bottom:1px solid var(--brd);flex-shrink:0}
+.stat{padding:11px 20px;border-right:1px solid var(--brd)}
+.stat:last-child{border-right:none}
+.stat-lbl{font-size:10px;color:var(--txt3);font-family:var(--mono);letter-spacing:.05em;text-transform:uppercase;margin-bottom:3px}
+.stat-val{font-size:22px;font-weight:700;line-height:1}
+.stat-sub{font-size:10px;color:var(--txt3);margin-top:2px}
+/* GRID */
+.grid-outer{flex:1;overflow:auto}
+.sched{width:100%;border-collapse:collapse;min-width:860px}
+.sched th{position:sticky;top:0;z-index:10;background:var(--surf);border-bottom:1px solid var(--brd);border-right:1px solid var(--brd);padding:8px 9px;font-size:10px;font-family:var(--mono);font-weight:500;color:var(--txt2);white-space:nowrap}
+.sched td{border-bottom:1px solid var(--brd);border-right:1px solid var(--brd);vertical-align:middle}
+.sched td:last-child,.sched th:last-child{border-right:none}
+.sched tr:hover td{background:rgba(79,142,247,.025)}
+[data-theme=light] .sched tr:hover td{background:rgba(0,0,0,.015)}
+.th-w{min-width:210px;text-align:left;padding-left:20px}
+.td-w{padding:8px 14px 8px 12px;position:sticky;left:0;background:var(--surf);z-index:5;border-right:1px solid var(--brd2)!important}
+.sched tr:hover .td-w{background:var(--surf2)}
+.w-name{font-size:12px;font-weight:600;display:flex;align-items:center;gap:5px}
+.w-meta{font-size:10px;color:var(--txt3);margin-top:2px;display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.w-sede{background:var(--surf3);color:var(--txt2);padding:1px 5px;border-radius:10px;font-size:9px;font-family:var(--mono)}
+.tipo-tag{font-size:9px;font-weight:700;font-family:var(--mono);padding:2px 5px;border-radius:4px}
+.tipo-ROT{background:rgba(45,212,191,.12);color:#2dd4bf}
+.tipo-FIJ{background:var(--acc-bg);color:var(--acc)}
+.tipo-NF{background:var(--surf3);color:var(--txt3)}
+.tipo-VAR{background:var(--amb-bg);color:var(--amb)}
+.td-day{padding:4px;text-align:center;cursor:pointer}
+.td-day.is-today{background:rgba(79,142,247,.04)}
+.td-day.is-we{background:rgba(255,255,255,.01)}
+[data-theme=light] .td-day.is-we{background:rgba(0,0,0,.012)}
+.chip{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding:5px 5px;border-radius:6px;border:1px solid;min-height:46px;cursor:pointer;transition:all .15s}
+.chip:hover{filter:brightness(1.08);transform:scale(.96)}
+.chip-name{font-size:10px;font-weight:700;line-height:1.2;text-align:center}
+.chip-time{font-size:9px;font-family:var(--mono);opacity:.75}
+/* CHIP COLORS */
+.M{background:#042f2e;color:#5eead4;border-color:#0d6e5f}[data-theme=light] .M{background:#d1fae5;color:#065f46;border-color:#6ee7b7}
+.T{background:#1e1b4b;color:#93c5fd;border-color:#3730a3}[data-theme=light] .T{background:#dbeafe;color:#1e3a8a;border-color:#93c5fd}
+.N{background:#2e1065;color:#c4b5fd;border-color:#6d28d9}[data-theme=light] .N{background:#ede9fe;color:#4c1d95;border-color:#c4b5fd}
+.D{background:#1c1409;color:#fcd34d;border-color:#78350f}[data-theme=light] .D{background:#fef3c7;color:#78350f;border-color:#fde68a}
+.B{background:#052e16;color:#86efac;border-color:#166534}[data-theme=light] .B{background:#d1fae5;color:#064e3b;border-color:#34d399}
+.F{background:#1e293b;color:#94a3b8;border-color:#334155}[data-theme=light] .F{background:#f1f5f9;color:#334155;border-color:#cbd5e1}
+.V{background:#0c1a2e;color:#7dd3fc;border-color:#1d4ed8}[data-theme=light] .V{background:#eff6ff;color:#1e40af;border-color:#bfdbfe}
+.X{background:#450a0a;color:#fca5a5;border-color:#7f1d1d}
+.S{background:#2e1065;color:#a78bfa;border-color:#6d28d9}
+.chip-empty{display:flex;align-items:center;justify-content:center;min-height:46px;border:1px dashed var(--brd2);border-radius:6px;color:var(--txt3);font-size:10px;cursor:pointer;transition:all .15s}
+.chip-empty:hover{border-color:var(--acc);color:var(--acc);background:var(--acc-bg)}
+.cell-dash{display:flex;align-items:center;justify-content:center;min-height:46px;color:var(--brd2)}
+.grp-hdr td{background:var(--surf2);font-size:10px;font-family:var(--mono);color:var(--txt2);padding:5px 20px;letter-spacing:.08em;font-weight:600;border-bottom:1px solid var(--brd)}
+/* ALERT */
+.alert-bar{display:flex;align-items:center;gap:9px;padding:7px 20px;font-size:12px;border-bottom:1px solid;flex-shrink:0}
+.alert-warn{background:var(--amb-bg);border-color:rgba(251,191,36,.2);color:var(--amb)}
+.alert-info{background:var(--acc-bg);border-color:rgba(79,142,247,.2);color:var(--acc)}
+/* LEGEND */
+.legend{display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:7px 20px;border-bottom:1px solid var(--brd);background:var(--surf);flex-shrink:0}
+.leg{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--txt2)}
+.leg-dot{width:10px;height:10px;border-radius:3px;flex-shrink:0}
+/* TABLES */
+.tbl-wrap{flex:1;overflow:auto;padding:14px 20px}
+.tbl-card{background:var(--surf);border-radius:10px;overflow:hidden;border:1px solid var(--brd)}
+.dtbl{width:100%;border-collapse:collapse;font-size:12px}
+.dtbl th{padding:9px 13px;text-align:left;font-family:var(--mono);font-size:10px;color:var(--txt2);border-bottom:1px solid var(--brd);background:var(--surf2);white-space:nowrap;letter-spacing:.05em}
+.dtbl td{padding:9px 13px;border-bottom:1px solid var(--brd)}
+.dtbl tr:last-child td{border-bottom:none}
+.dtbl tr:hover td{background:var(--surf2)}
+/* ESTADO CHIPS */
+.ec{display:inline-flex;align-items:center;padding:2px 8px;border-radius:5px;font-size:10px;font-weight:700;font-family:var(--mono)}
+.ec-ok{background:var(--grn-bg);color:var(--grn)}
+.ec-warn{background:var(--amb-bg);color:var(--amb)}
+.ec-err{background:var(--red-bg);color:var(--red)}
+.ec-info{background:var(--acc-bg);color:var(--acc)}
+.ec-tea{background:var(--tea-bg);color:var(--tea)}
+.ec-pur{background:var(--pur-bg);color:var(--pur)}
+.ec-gray{background:var(--surf3);color:var(--txt2)}
+/* TABS */
+.tabs{display:flex;gap:2px;padding:4px;background:var(--surf2);border-radius:10px;width:fit-content;margin:12px 20px 0}
+.tab{padding:5px 13px;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;color:var(--txt2);transition:all .15s;background:transparent;border:none;font-family:var(--sans)}
+.tab.active{background:var(--surf);color:var(--txt);box-shadow:0 1px 3px rgba(0,0,0,.15)}
+/* COB LIST */
+.cob-list{display:flex;flex-direction:column;gap:7px;padding:14px 20px;overflow-y:auto;flex:1}
+.cob-item{background:var(--surf);border:1px solid var(--brd);border-radius:10px;padding:12px 15px;display:flex;align-items:center;gap:11px;transition:border .15s}
+.cob-item:hover{border-color:var(--brd2)}
+.cob-badge{padding:3px 9px;border-radius:6px;font-size:10px;font-weight:700;font-family:var(--mono);min-width:82px;text-align:center;flex-shrink:0}
+.cb-COBERTURA{background:var(--acc-bg);color:var(--acc)}
+.cb-CAMBIO{background:var(--pur-bg);color:var(--pur)}
+.cb-ANTICIPO{background:var(--tea-bg);color:var(--tea)}
+/* PTS GRID */
+.pts-outer{flex:1;overflow:auto;padding:14px 20px}
+.pts-grid{display:grid;gap:1px;background:var(--brd);border-radius:8px;overflow:hidden;font-size:11px}
+.pts-cell{background:var(--surf);padding:7px 5px;text-align:center}
+.pts-hdr{background:var(--surf2);font-family:var(--mono);font-size:9px;color:var(--txt2);letter-spacing:.06em}
+.pts-worker{background:var(--surf2);text-align:left;padding:6px 12px;display:flex;flex-direction:column;justify-content:center}
+.pts-btn{border-radius:4px;padding:3px 6px;font-size:9px;cursor:pointer;font-family:var(--mono);font-weight:600;border:none;transition:all .15s;width:100%;margin-bottom:3px}
+.pts-w{background:var(--acc-bg);color:var(--acc)}
+.pts-d{background:var(--amb-bg);color:var(--amb)}
+.pts-b{background:var(--grn-bg);color:var(--grn)}
+.pts-v{background:var(--acc-bg);color:#7dd3fc}
+.pts-ht{background:var(--surf3);border:1px solid var(--brd);border-radius:4px;color:var(--txt);font-size:9px;font-family:var(--mono);padding:2px 3px;cursor:pointer;width:100%;margin-top:2px}
+/* PTS — celda guardada (viene de BD) */
+.pts-cell.saved{background:var(--surf);opacity:.92}
+.pts-btn.saved-lock{position:relative}
+.pts-btn.saved-lock::after{content:'🔒';font-size:7px;position:absolute;top:1px;right:3px;opacity:.6}
+/* PTS — separador de secciones */
+.pts-section-hdr{grid-column:1/-1;background:var(--surf2);padding:5px 12px;font-size:9px;font-family:var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--txt3);display:flex;align-items:center;gap:8px;border-top:2px solid var(--brd2)}
+.pts-section-hdr span{background:var(--surf3);border-radius:20px;padding:1px 8px;font-size:9px}
+/* DRAWER */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:90;opacity:0;pointer-events:none;transition:opacity .2s}
+.overlay.open{opacity:1;pointer-events:all}
+.drawer{position:fixed;right:0;top:0;bottom:0;width:500px;background:var(--surf);border-left:1px solid var(--brd2);z-index:91;transform:translateX(100%);transition:transform .25s cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column;box-shadow:var(--shd)}
+.drawer.open{transform:translateX(0)}
+.dr-hdr{padding:18px 20px 14px;border-bottom:1px solid var(--brd);position:relative;flex-shrink:0}
+.dr-title{font-size:15px;font-weight:700}
+.dr-sub{font-size:11px;color:var(--txt2);margin-top:3px;font-family:var(--mono)}
+.dr-close{position:absolute;right:16px;top:16px;width:28px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:6px;background:transparent;border:1px solid var(--brd);color:var(--txt2);font-size:16px;cursor:pointer}
+.dr-body{flex:1;overflow-y:auto;padding:18px 20px;display:flex;flex-direction:column;gap:14px}
+.dr-footer{padding:12px 20px;border-top:1px solid var(--brd);display:flex;gap:7px;justify-content:flex-end;flex-shrink:0}
+/* FORM */
+.fld{display:flex;flex-direction:column;gap:5px}
+.fld-lbl{font-size:10px;font-family:var(--mono);color:var(--txt2);letter-spacing:.06em;text-transform:uppercase}
+.inp{width:100%;padding:8px 12px;background:var(--surf2);border:1px solid var(--brd);border-radius:8px;color:var(--txt);font-size:13px;font-family:var(--sans);outline:none;transition:border .15s}
+.inp:focus{border-color:var(--acc)}
+.sel{width:100%;padding:8px 12px;background:var(--surf2);border:1px solid var(--brd);border-radius:8px;color:var(--txt);font-size:13px;font-family:var(--sans);cursor:pointer;outline:none}
+.sel:focus{border-color:var(--acc)}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+.form-row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:11px}
+.divider{height:1px;background:var(--brd)}
+.sec-lbl{font-size:10px;color:var(--txt2);font-family:var(--mono);letter-spacing:.08em;text-transform:uppercase;padding-bottom:7px;border-bottom:1px solid var(--brd)}
+.info-box{padding:10px 12px;background:var(--acc-bg);border:1px solid rgba(79,142,247,.2);border-radius:8px;font-size:11px;color:var(--txt2);line-height:1.6}
+.info-box strong{color:var(--acc)}
+.warn-box{padding:10px 12px;background:var(--amb-bg);border:1px solid rgba(251,191,36,.2);border-radius:8px;font-size:11px;color:var(--amb);line-height:1.6}
+/* SHIFT OPTS */
+.shift-opts{display:flex;flex-direction:column;gap:5px}
+.shift-opt{display:flex;align-items:center;gap:11px;padding:10px 13px;border:1px solid var(--brd);border-radius:9px;cursor:pointer;transition:all .15s}
+.shift-opt:hover{border-color:var(--brd2);background:var(--surf2)}
+.shift-opt.sel{border-color:var(--acc);background:var(--acc-bg)}
+.shift-clr{width:32px;height:32px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;font-family:var(--mono);flex-shrink:0}
+.shift-radio{width:14px;height:14px;border-radius:50%;border:1.5px solid var(--brd2);flex-shrink:0;margin-left:auto}
+.shift-opt.sel .shift-radio{background:var(--acc);border-color:var(--acc)}
+/* HT GRID */
+.ht-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+.ht-opt{border:1px solid var(--brd);border-radius:9px;padding:10px 8px;cursor:pointer;text-align:center;transition:all .15s}
+.ht-opt:hover{border-color:var(--brd2);background:var(--surf2)}
+.ht-opt.sel{border-color:var(--acc);background:var(--acc-bg)}
+.ht-chip{font-size:15px;font-weight:700;margin-bottom:3px}
+.ht-time{font-size:10px;color:var(--txt);font-weight:500}
+.ht-id{font-size:9px;color:var(--txt3);font-family:var(--mono);margin-top:2px}
+/* TIPO SEL */
+.tipo-sel{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px}
+.tipo-opt{border:1px solid var(--brd);border-radius:9px;padding:10px 7px;cursor:pointer;text-align:center;transition:all .15s}
+.tipo-opt:hover{border-color:var(--brd2);background:var(--surf2)}
+.tipo-opt.sel{border-color:var(--acc);background:var(--acc-bg)}
+/* WIZARD */
+.wizard-steps{display:flex;gap:0;margin-bottom:4px}
+.wz-step{flex:1;text-align:center;padding:8px 4px;font-size:10px;font-family:var(--mono);color:var(--txt3);border-bottom:2px solid var(--brd);transition:all .15s;cursor:pointer}
+.wz-step.active{color:var(--acc);border-bottom-color:var(--acc)}
+.wz-step.done{color:var(--grn);border-bottom-color:var(--grn)}
+.wz-panel{display:none}.wz-panel.active{display:flex;flex-direction:column;gap:12px}
+/* NOTIF */
+.notif-wrap{position:relative;cursor:pointer}
+.notif-cnt{position:absolute;top:-5px;right:-5px;background:var(--red);color:#fff;font-size:9px;font-weight:700;font-family:var(--mono);width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center}
+/* TOAST */
+.toast{position:fixed;bottom:20px;right:20px;background:var(--surf);border:1px solid var(--grn);color:var(--grn);padding:10px 17px;border-radius:10px;font-size:12px;font-family:var(--mono);z-index:200;transform:translateY(60px);opacity:0;transition:.28s cubic-bezier(.4,0,.2,1);box-shadow:var(--shd)}
+.toast.show{transform:translateY(0);opacity:1}
+.toast.err{border-color:var(--red);color:var(--red)}
+.toast.warn{border-color:var(--amb);color:var(--amb)}
+/* SPIN */
+.spin{display:inline-block;width:16px;height:16px;border:2px solid var(--brd2);border-top-color:var(--acc);border-radius:50%;animation:spin .6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.load-row td{text-align:center;padding:36px;color:var(--txt3)}
+/* CHK */
+.chk-row{display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer}
+.chk-row input{accent-color:var(--acc);width:14px;height:14px;cursor:pointer}
+/* ACCORDION */
+.acc-hdr{display:flex;align-items:center;gap:8px;padding:6px 0;cursor:pointer;font-size:12px;font-weight:600;color:var(--txt2);user-select:none}
+.acc-hdr:hover{color:var(--txt)}
+.acc-arrow{transition:transform .15s;font-size:11px}
+.acc-body{display:none;padding-top:6px}
+.acc-open .acc-arrow{transform:rotate(90deg)}
+.acc-open .acc-body{display:flex;flex-direction:column;gap:8px}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-page">
+  <div class="login-wrap">
+    <div class="login-card">
+      <div class="login-logo">ENERGI<em>GAS</em></div>
+      <div class="login-sub">Control de Asistencia · v3</div>
+      <div class="err-box" id="login-err"></div>
+      <div class="fld" style="margin-bottom:14px"><div class="fld-lbl">Usuario</div><input class="inp" id="inp-user" placeholder="Ingresa tu usuario" autocomplete="username"></div>
+      <div class="fld" style="margin-bottom:18px"><div class="fld-lbl">Contraseña</div><input class="inp" id="inp-pass" type="password" placeholder="••••••••" autocomplete="current-password"></div>
+      <button class="btn btn-primary" id="btn-login" onclick="doLogin()" style="width:100%">Iniciar sesión</button>
+      <div style="text-align:center;margin-top:14px;font-size:11px;color:var(--txt3)">ENERGIGAS SAC · v3 · PTS + Fijo + Rotativo</div>
+    </div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app-shell" class="hidden">
+<div class="shell">
+  <aside class="sidebar">
+    <div class="logo-zone">
+      <div class="logo">ENERGI<em>GAS</em></div>
+      <div class="logo-sub">RRHH v3</div>
+    </div>
+    <nav class="nav" id="sidebar-nav"></nav>
+    <div class="sidebar-btm">
+      <div class="user-pill">
+        <div class="avatar" id="user-av">?</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" id="user-nm">—</div>
+          <div style="font-size:10px;color:var(--txt3);font-family:var(--mono)" id="user-rl">—</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <header class="topbar">
+    <span class="pg-title" id="pg-title">—</span>
+    <div class="wk-nav" id="wk-nav" style="display:none">
+      <button class="wk-btn" onclick="changeWeek(-1)">←</button>
+      <span class="wk-lbl" id="wk-lbl">—</span>
+      <button class="wk-btn" onclick="changeWeek(1)">→</button>
+    </div>
+    <div class="topbar-gap"></div>
+    <div class="notif-wrap" onclick="navTo('notificaciones')"><span style="font-size:20px;cursor:pointer">🔔</span><span class="notif-cnt hidden" id="notif-cnt">0</span></div>
+    <button class="icon-btn" onclick="toggleTheme()" id="theme-ico">☀</button>
+    <button class="logout-btn" onclick="doLogout()">Salir</button>
+  </header>
+
+  <div class="main-c">
+
+    <!-- HORARIO -->
+    <div class="page" id="page-horario">
+      <div class="alert-bar alert-warn hidden" id="alert-sin"><span>⚠</span><span id="alert-sin-txt"></span></div>
+      <div class="stats-row" id="stats-horario"></div>
+      <div class="toolbar">
+        <div class="srch-wrap"><span class="srch-ico">⌕</span><input class="srch" id="srch-hor" placeholder="Nombre, DNI, área…" oninput="renderGrid()"></div>
+        <button class="pill on" id="f-ALL" onclick="setFil('ALL')">Todos</button>
+        <button class="pill" id="f-ROT" onclick="setFil('ROT')">Rotativos</button>
+        <button class="pill" id="f-FIJ" onclick="setFil('FIJ')">Fijos</button>
+        <button class="pill" id="f-NF" onclick="setFil('NF')">No fisc.</button>
+        <select class="sel" id="sede-fil" onchange="renderGrid()" style="width:155px;padding:5px 9px;font-size:12px;border-radius:8px"></select>
+        <div style="flex:1"></div>
+        <button class="btn btn-sm" onclick="copyPrevWeek()">Copiar sem. ant.</button>
+        <button class="btn btn-primary btn-sm" onclick="publishWeek()">Publicar semana</button>
+      </div>
+      <div class="legend">
+        <span style="font-size:10px;color:var(--txt3);font-family:var(--mono)">ROTATIVOS:</span>
+        <div class="leg"><div class="leg-dot M" style="width:10px;height:10px;border-radius:3px"></div>Mañana</div>
+        <div class="leg"><div class="leg-dot T" style="width:10px;height:10px;border-radius:3px"></div>Tarde</div>
+        <div class="leg"><div class="leg-dot N" style="width:10px;height:10px;border-radius:3px"></div>Noche</div>
+        <div class="leg"><div class="leg-dot D" style="width:10px;height:10px;border-radius:3px"></div>Descanso</div>
+        <div class="leg"><div class="leg-dot V" style="width:10px;height:10px;border-radius:3px"></div>Vacaciones</div>
+        <span style="font-size:10px;color:var(--txt3);font-family:var(--mono);margin-left:8px">FIJOS:</span>
+        <div class="leg"><div class="leg-dot F" style="width:10px;height:10px;border-radius:3px"></div>Fijo (L-V)</div>
+        <div class="leg"><div class="leg-dot B" style="width:10px;height:10px;border-radius:3px"></div>Boleta</div>
+        <div class="leg"><div class="leg-dot X" style="width:10px;height:10px;border-radius:3px"></div>Falta cubierta</div>
+        <div class="leg"><div class="leg-dot S" style="width:10px;height:10px;border-radius:3px"></div>SWAP</div>
+      </div>
+      <div class="grid-outer"><table class="sched" id="tbl-sched"></table></div>
+    </div>
+
+    <!-- PTS PROGRAMACIÓN -->
+    <div class="page" id="page-programacion">
+      <div class="alert-bar alert-info"><span>ℹ</span> <strong>Rotativos:</strong> Clic en estado cicla Trabaja→Descanso→Boleta→Vacaciones. Selector de sub-horario por día. <strong>Fijos:</strong> Solo Trabaja / Descanso / Vacaciones.</div>
+      <div class="toolbar">
+        <div class="srch-wrap"><span class="srch-ico">⌕</span><input class="srch" id="srch-pts" placeholder="Buscar trabajador…" oninput="searchPTS()"></div>
+        <button class="pill on" id="pts-f-ALL" onclick="setPTSFil('ALL')">Todos</button>
+        <button class="pill" id="pts-f-ROT" onclick="setPTSFil('ROT')">Rotativos</button>
+        <button class="pill" id="pts-f-FIJ" onclick="setPTSFil('FIJ')">Fijos</button>
+        <select class="sel" id="pts-sede-fil" onchange="setPTSPag(1)" style="width:150px;padding:5px 9px;font-size:12px;border-radius:8px"></select>
+        <div style="flex:1"></div>
+        <button class="btn btn-sm" onclick="openVacDrawer()" style="color:var(--acc);border-color:var(--acc-bg)">🏖 Vacaciones masivas</button>
+        <button class="btn btn-primary btn-sm" id="btn-save-pts" onclick="savePTS()">💾 Guardar semana</button>
+      </div>
+      <!-- PAGINADOR -->
+      <div id="pts-pager" style="display:flex;align-items:center;gap:8px;padding:7px 20px;border-bottom:1px solid var(--brd);background:var(--surf);flex-shrink:0;flex-wrap:wrap">
+        <span style="font-size:11px;color:var(--txt3);font-family:var(--mono)" id="pts-pager-info">—</span>
+        <div style="flex:1"></div>
+        <div style="display:flex;gap:4px;align-items:center">
+          <select class="sel" id="pts-page-size" onchange="changePTSPageSize(this.value)" style="width:90px;padding:4px 8px;font-size:11px;border-radius:6px">
+            <option value="10">10 / pág</option>
+            <option value="20" selected>20 / pág</option>
+            <option value="50">50 / pág</option>
+            <option value="100">100 / pág</option>
+          </select>
+          <button class="btn btn-sm" id="pts-btn-first"  onclick="setPTSPag(1)"                    title="Primera">«</button>
+          <button class="btn btn-sm" id="pts-btn-prev"   onclick="setPTSPag(ptsPagina-1)"           title="Anterior">‹</button>
+          <span id="pts-pager-pages" style="display:flex;gap:3px"></span>
+          <button class="btn btn-sm" id="pts-btn-next"   onclick="setPTSPag(ptsPagina+1)"           title="Siguiente">›</button>
+          <button class="btn btn-sm" id="pts-btn-last"   onclick="setPTSPag(ptsTotalPaginas)"       title="Última">»</button>
+        </div>
+      </div>
+      <div class="pts-outer">
+        <div id="pts-loading" class="hidden" style="padding:40px;text-align:center;color:var(--txt3)"><div class="spin"></div></div>
+        <div class="pts-grid" id="pts-grid" style="grid-template-columns:200px repeat(7,1fr)"></div>
+      </div>
+    </div>
+
+    <!-- COBERTURAS -->
+    <div class="page" id="page-coberturas">
+      <div class="toolbar">
+        <div style="flex:1"></div>
+        <button class="btn btn-primary btn-sm" onclick="openCobDrawer()">+ Cobertura / Cambio</button>
+      </div>
+      <div class="tabs">
+        <button class="tab active" onclick="setCobFil('todos',this)">Todos</button>
+        <button class="tab" onclick="setCobFil('PENDIENTE',this)">Pendientes</button>
+        <button class="tab" onclick="setCobFil('APROBADO',this)">Aprobados</button>
+        <button class="tab" onclick="setCobFil('EJECUTADO',this)">Ejecutados</button>
+      </div>
+      <div class="cob-list" id="cob-list"></div>
+    </div>
+
+    <!-- TRABAJADORES -->
+    <div class="page" id="page-trabajadores">
+      <div class="toolbar">
+        <div class="srch-wrap"><span class="srch-ico">⌕</span><input class="srch" id="srch-trab" placeholder="Nombre, DNI…" oninput="loadTrabajadores()"></div>
+        <button class="pill on" id="tw-f-ALL" onclick="setTrabFil('ALL')">Todos</button>
+        <button class="pill" id="tw-f-ROT" onclick="setTrabFil('ROT')">Rotativos</button>
+        <button class="pill" id="tw-f-FIJ" onclick="setTrabFil('FIJ')">Fijos</button>
+        <select class="sel" id="sede-trab-fil" onchange="loadTrabajadores()" style="width:155px;padding:5px 9px;font-size:12px;border-radius:8px"></select>
+        <div style="flex:1"></div>
+        <button class="btn btn-primary btn-sm" onclick="openWorkerWizard(null)">+ Nuevo trabajador</button>
+      </div>
+      <div class="tbl-wrap"><div class="tbl-card">
+        <table class="dtbl">
+          <thead><tr><th>Trabajador</th><th>DNI</th><th>Tipo</th><th>Sub-horario base</th><th>Sede</th><th>Estado</th><th></th></tr></thead>
+          <tbody id="trab-tbody"><tr class="load-row"><td colspan="7"><div class="spin"></div></td></tr></tbody>
+        </table>
+      </div></div>
+    </div>
+
+    <!-- RESUMEN -->
+    <div class="page" id="page-resumen">
+      <div class="toolbar">
+        <label style="font-size:12px;color:var(--txt2)">Fecha:</label>
+        <input type="date" class="inp" id="res-fecha" style="width:155px" onchange="loadResumen()">
+        <select class="sel" id="res-sede" style="width:155px;padding:5px 9px;font-size:12px;border-radius:8px" onchange="loadResumen()"></select>
+        <div style="flex:1"></div>
+        <button class="btn btn-sm" onclick="ejecutarCierre()">▶ Ejecutar SP cierre v3</button>
+      </div>
+      <div class="stats-row" id="stats-res"></div>
+      <div class="tbl-wrap"><div class="tbl-card">
+        <table class="dtbl">
+          <thead><tr><th>Trabajador</th><th>DNI</th><th>Estado</th><th>Tardanza</th><th>H. Extra</th></tr></thead>
+          <tbody id="res-tbody"><tr class="load-row"><td colspan="5"><div class="spin"></div></td></tr></tbody>
+        </table>
+      </div></div>
+    </div>
+
+    <!-- NOTIFICACIONES -->
+    <div class="page" id="page-notificaciones">
+      <div class="toolbar"><div style="flex:1"></div><button class="btn btn-sm" onclick="marcarTodasLeidas()">Marcar todas leídas</button></div>
+      <div class="tbl-wrap"><div class="tbl-card">
+        <table class="dtbl">
+          <thead><tr><th>Tipo</th><th>Título</th><th>Mensaje</th><th>Fecha</th><th></th></tr></thead>
+          <tbody id="notif-tbody"></tbody>
+        </table>
+      </div></div>
+    </div>
+
+    <!-- REPORTES -->
+    <div class="page" id="page-reportes">
+      <div class="toolbar">
+        <label style="font-size:12px;color:var(--txt2)">Desde:</label><input type="date" class="inp" id="rep-desde" style="width:145px">
+        <label style="font-size:12px;color:var(--txt2)">Hasta:</label><input type="date" class="inp" id="rep-hasta" style="width:145px">
+        <select class="sel" id="rep-tipo" style="width:175px;padding:5px 9px;font-size:12px;border-radius:8px">
+          <option value="resumen">Resumen asistencia</option>
+          <option value="mensual">Reporte mensual (SP)</option>
+          <option value="tardanzas">Tardanzas</option>
+          <option value="horas-extras">Horas extra</option>
+          <option value="inconsistencias">Inconsistencias</option>
+        </select>
+        <div style="flex:1"></div>
+        <button class="btn btn-primary btn-sm" onclick="loadReporte()">Generar reporte</button>
+      </div>
+      <div class="tbl-wrap"><div class="tbl-card">
+        <table class="dtbl">
+          <thead><tr id="rep-thead"></tr></thead>
+          <tbody id="rep-tbody"><tr class="load-row"><td>Selecciona rango y genera el reporte</td></tr></tbody>
+        </table>
+      </div></div>
+    </div>
+
+    <!-- MAESTROS: SUCURSALES -->
+    <div class="page" id="page-sucursales">
+      <div class="toolbar">
+        <div class="srch-wrap"><span class="srch-ico">⌕</span><input class="srch" id="srch-suc" placeholder="Buscar sucursal…" oninput="loadSucursales()"></div>
+        <div style="flex:1"></div>
+        <button class="btn btn-primary btn-sm" onclick="openMaestroDrawer('sucursal',null)">+ Nueva sucursal</button>
+      </div>
+      <div class="tbl-wrap"><div class="tbl-card">
+        <table class="dtbl">
+          <thead><tr><th>#</th><th>Nombre</th><th>Dirección</th><th>GPS</th><th>Perímetro</th><th>Activo</th><th></th></tr></thead>
+          <tbody id="suc-tbody"><tr class="load-row"><td colspan="7"><div class="spin"></div></td></tr></tbody>
+        </table>
+      </div></div>
+    </div>
+
+    <!-- MAESTROS: TURNOS -->
+    <div class="page" id="page-turnos">
+      <div class="toolbar">
+        <div style="flex:1"></div>
+        <button class="btn btn-primary btn-sm" onclick="openMaestroDrawer('turno',null)">+ Nuevo turno</button>
+      </div>
+      <div class="tbl-wrap"><div class="tbl-card">
+        <table class="dtbl">
+          <thead><tr><th>#</th><th>Código</th><th>Tipo</th><th>Tol. Ingreso</th><th>Tol. Salida</th><th>Activo</th><th>Sub-horarios</th><th></th></tr></thead>
+          <tbody id="turnos-tbody"><tr class="load-row"><td colspan="8"><div class="spin"></div></td></tr></tbody>
+        </table>
+      </div></div>
+    </div>
+
+    <!-- MAESTROS: HORARIOS TURNO -->
+    <div class="page" id="page-horarios-turno">
+      <div class="toolbar">
+        <select class="sel" id="ht-turno-fil" onchange="loadHorariosTurnoPage()" style="width:200px;padding:5px 9px;font-size:12px;border-radius:8px"><option value="">Todos los turnos</option></select>
+        <div style="flex:1"></div>
+        <button class="btn btn-primary btn-sm" onclick="openMaestroDrawer('horarioTurno',null)">+ Nuevo sub-horario</button>
+      </div>
+      <div class="tbl-wrap"><div class="tbl-card">
+        <table class="dtbl">
+          <thead><tr><th>id_ht</th><th>Nombre horario</th><th>Turno padre</th><th>Tipo</th><th>Activo</th><th></th></tr></thead>
+          <tbody id="ht-tbody"><tr class="load-row"><td colspan="6"><div class="spin"></div></td></tr></tbody>
+        </table>
+      </div></div>
+    </div>
+
+    <!-- MAESTROS: TIPO TURNO -->
+    <div class="page" id="page-tipo-turno">
+      <div class="toolbar"><div style="flex:1"></div><button class="btn btn-primary btn-sm" onclick="openMaestroDrawer('tipoTurno',null)">+ Nuevo tipo</button></div>
+      <div class="tbl-wrap"><div class="tbl-card">
+        <table class="dtbl">
+          <thead><tr><th>#</th><th>Nombre tipo</th><th></th></tr></thead>
+          <tbody id="tt-tbody"><tr class="load-row"><td colspan="3"><div class="spin"></div></td></tr></tbody>
+        </table>
+      </div></div>
+    </div>
+
+    <!-- TARDANZAS -->
+    <div class="page" id="page-tardanzas">
+      <div class="toolbar">
+        <label style="font-size:12px;color:var(--txt2)">Desde:</label>
+        <input type="date" class="inp" id="tard-desde" style="width:145px" onchange="loadTardanzas()">
+        <label style="font-size:12px;color:var(--txt2)">Hasta:</label>
+        <input type="date" class="inp" id="tard-hasta" style="width:145px" onchange="loadTardanzas()">
+        <div class="srch-wrap"><span class="srch-ico">⌕</span><input class="srch" id="srch-tard" placeholder="Nombre, DNI…" oninput="renderTardanzas()"></div>
+        <select class="sel" id="tard-area-fil" onchange="renderTardanzas()" style="width:160px;padding:5px 9px;font-size:12px;border-radius:8px"><option value="">Todas las áreas</option></select>
+        <button class="pill on" id="tard-f-ALL" onclick="setTardFil('ALL')">Todos</button>
+        <button class="pill" id="tard-f-TARD" onclick="setTardFil('TARD')">Con tardanza</button>
+        <button class="pill" id="tard-f-PUNT" onclick="setTardFil('PUNT')">Puntuales</button>
+        <button class="pill" id="tard-f-SIN" onclick="setTardFil('SIN')">Sin marcación</button>
+        <div style="flex:1"></div>
+        <button class="btn btn-sm" onclick="exportTardanzasCSV()">↓ CSV</button>
+        <button class="btn btn-primary btn-sm" onclick="loadTardanzas()">Generar reporte</button>
+      </div>
+      <div class="stats-row" id="stats-tard"></div>
+      <div class="tbl-wrap"><div class="tbl-card">
+        <table class="dtbl">
+          <thead><tr>
+            <th>Trabajador</th>
+            <th>DNI</th>
+            <th>Área</th>
+            <th>Fecha</th>
+            <th style="text-align:center">Hora Turno</th>
+            <th style="text-align:center">Hora Marcación</th>
+            <th style="text-align:center">Tardanza</th>
+          </tr></thead>
+          <tbody id="tard-tbody"><tr class="load-row"><td colspan="7">Selecciona un rango de fechas y genera el reporte</td></tr></tbody>
+        </table>
+      </div></div>
+    </div>
+
+  </div><!-- main-c -->
+</div><!-- shell -->
+</div><!-- app-shell -->
+
+<!-- DRAWER: TURNO DÍA (fijo + rotativo) -->
+<div class="overlay" id="ov-shift" onclick="closeShift()"></div>
+<div class="drawer" id="dr-shift">
+  <button class="dr-close" onclick="closeShift()">✕</button>
+  <div class="dr-hdr"><div class="dr-title" id="ds-title">Asignar turno</div><div class="dr-sub" id="ds-sub"></div></div>
+  <div class="dr-body" id="ds-body"></div>
+  <div class="dr-footer">
+    <button class="btn btn-danger btn-sm" onclick="clearShift()">Quitar turno</button>
+    <button class="btn btn-sm" onclick="closeShift()">Cancelar</button>
+    <button class="btn btn-primary btn-sm" onclick="saveShift()">Guardar en PTS</button>
+  </div>
+</div>
+
+<!-- DRAWER: TRABAJADOR WIZARD -->
+<div class="overlay" id="ov-worker" onclick="closeWorker()"></div>
+<div class="drawer" id="dr-worker">
+  <button class="dr-close" onclick="closeWorker()">✕</button>
+  <div class="dr-hdr"><div class="dr-title" id="dw-title">Nuevo trabajador</div><div class="dr-sub" id="dw-sub">Flujo completo: Persona → Trabajador → Turno</div></div>
+  <div class="dr-body" id="dw-body"></div>
+  <div class="dr-footer" id="dw-footer"></div>
+</div>
+
+<!-- DRAWER: COBERTURA -->
+<div class="overlay" id="ov-cob" onclick="closeCob()"></div>
+<div class="drawer" id="dr-cob">
+  <button class="dr-close" onclick="closeCob()">✕</button>
+  <div class="dr-hdr"><div class="dr-title">Cobertura / Cambio de turno</div><div class="dr-sub">SP_REGISTRAR_COBERTURA_TURNO · COBERTURA_TURNOS</div></div>
+  <div class="dr-body" id="cob-body"></div>
+  <div class="dr-footer">
+    <button class="btn btn-sm" onclick="closeCob()">Cancelar</button>
+    <button class="btn btn-primary btn-sm" onclick="saveCob()">Registrar</button>
+  </div>
+</div>
+
+<!-- DRAWER: VACACIONES -->
+<div class="overlay" id="ov-vac" onclick="closeVac()"></div>
+<div class="drawer" id="dr-vac">
+  <button class="dr-close" onclick="closeVac()">✕</button>
+  <div class="dr-hdr"><div class="dr-title">Vacaciones masivas</div><div class="dr-sub">PROGRAMACION_TURNOS_SEMANAL.es_vacaciones = 1</div></div>
+  <div class="dr-body" id="vac-body"></div>
+  <div class="dr-footer">
+    <button class="btn btn-sm" onclick="closeVac()">Cancelar</button>
+    <button class="btn btn-primary btn-sm" onclick="saveVac()">Marcar vacaciones</button>
+  </div>
+</div>
+
+<!-- DRAWER: MAESTRO GENÉRICO -->
+<div class="overlay" id="ov-maestro" onclick="closeMaestro()"></div>
+<div class="drawer" id="dr-maestro">
+  <button class="dr-close" onclick="closeMaestro()">✕</button>
+  <div class="dr-hdr"><div class="dr-title" id="dm-title">—</div><div class="dr-sub" id="dm-sub"></div></div>
+  <div class="dr-body" id="dm-body"></div>
+  <div class="dr-footer">
+    <button class="btn btn-danger btn-sm hidden" id="dm-del" onclick="deleteMaestro()">Eliminar</button>
+    <button class="btn btn-sm" onclick="closeMaestro()">Cancelar</button>
+    <button class="btn btn-primary btn-sm" onclick="saveMaestro()">Guardar</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ══ CONFIG ═══════════════════════════════════════════════
+const API = 'https://127.0.0.1:7209';
+
+// ══ STATE ════════════════════════════════════════════════
+let accessToken = localStorage.getItem('eg_token')||'';
+let refreshTokenStr = localStorage.getItem('eg_refresh')||'';
+let currentUser = JSON.parse(localStorage.getItem('eg_user')||'null');
+let sedes=[], horariosTurno=[], tiposTurno=[], allTurnos=[];
+let allTrabajadores=[], allCoberturas=[];
+let ptsSemana={}, ptsOverrides={}, shiftOverrides={};
+let weekOffset=0, filterTipo='ALL', ptsFil='ALL', trabFil='ALL';
+let cobFil='todos', cobTipo='COBERTURA';
+let shiftEdit=null, tempShift=null, tempHtId=null;
+let maestroCtx=null;
+let wizardStep=1, wizardData={};
+// Paginación PTS
+let ptsPagina=1, ptsTotalPaginas=1, ptsTotalCount=0, ptsPageSize=20;
+let lastPTSItems=[];
+
+function getMonday(d=new Date()){const c=new Date(d);const day=c.getDay();const diff=c.getDate()-(day===0?6:day-1);c.setDate(diff);c.setHours(0,0,0,0);return c;}
+const WEEK_BASE = getMonday();
+const DIAS_ES = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
+const DIAS_SH = ['Lu','Ma','Mié','Ju','Vi','Sá','Do'];
+
+// ══ TEMA ══════════════════════════════════════════════════
+function toggleTheme(){const h=document.documentElement,d=h.dataset.theme==='dark';h.dataset.theme=d?'light':'dark';document.getElementById('theme-ico').textContent=d?'☽':'☀';localStorage.setItem('eg-theme',h.dataset.theme);}
+(()=>{const t=localStorage.getItem('eg-theme');const dark=t?t==='dark':true;document.documentElement.dataset.theme=dark?'dark':'light';document.getElementById('theme-ico').textContent=dark?'☀':'☽';})();
+
+// ══ API ═══════════════════════════════════════════════════
+async function apiFetch(path,opts={}){
+  const h={'Content-Type':'application/json',...(opts.headers||{})};
+  if(accessToken)h['Authorization']=`Bearer ${accessToken}`;
+  const r=await fetch(API+path,{...opts,headers:h});
+  if(r.status===401&&refreshTokenStr){const ok=await tryRefresh();if(ok){h['Authorization']=`Bearer ${accessToken}`;return fetch(API+path,{...opts,headers:h});}else{doLogout();throw new Error('Session expired');}}
+  return r;
+}
+async function tryRefresh(){try{const r=await fetch(API+'/api/auth/refresh',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({refreshToken:refreshTokenStr})});if(!r.ok)return false;const d=await r.json();accessToken=d.accessToken||d.token;refreshTokenStr=d.refreshToken;localStorage.setItem('eg_token',accessToken);localStorage.setItem('eg_refresh',refreshTokenStr);return true;}catch{return false;}}
+
+// ══ LOGIN ═════════════════════════════════════════════════
+document.getElementById('inp-pass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+document.getElementById('inp-user').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('inp-pass').focus();});
+async function doLogin(){
+  const username=document.getElementById('inp-user').value.trim();
+  const password=document.getElementById('inp-pass').value;
+  const errEl=document.getElementById('login-err');
+  const btn=document.getElementById('btn-login');
+  errEl.style.display='none';
+  if(!username||!password){errEl.textContent='Ingresa usuario y contraseña';errEl.style.display='block';return;}
+  btn.disabled=true;btn.innerHTML='<div class="spin"></div>';
+  try{
+    const r=await fetch(API+'/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username,password})});
+    const data=await r.json();
+    if(!r.ok){errEl.textContent=data.message||'Credenciales incorrectas';errEl.style.display='block';return;}
+    accessToken=data.accessToken||data.token;
+    refreshTokenStr=data.refreshToken;
+    currentUser=data.user||data;
+    localStorage.setItem('eg_token',accessToken);localStorage.setItem('eg_refresh',refreshTokenStr);localStorage.setItem('eg_user',JSON.stringify(currentUser));
+    initApp();
+  }catch{errEl.textContent='No se pudo conectar con el servidor en '+API;errEl.style.display='block';}
+  finally{btn.disabled=false;btn.textContent='Iniciar sesión';}
+}
+async function doLogout(){
+  if(refreshTokenStr)try{await apiFetch('/api/auth/logout',{method:'POST',body:JSON.stringify({refreshToken:refreshTokenStr})});}catch{}
+  accessToken='';refreshTokenStr='';currentUser=null;
+  ['eg_token','eg_refresh','eg_user'].forEach(k=>localStorage.removeItem(k));
+  document.getElementById('app-shell').classList.add('hidden');
+  document.getElementById('login-page').style.display='';
+}
+
+// ══ INIT ═════════════════════════════════════════════════
+async function initApp(){
+  document.getElementById('login-page').style.display='none';
+  document.getElementById('app-shell').classList.remove('hidden');
+  const role=currentUser?.role||currentUser?.Role||'';
+  const name=currentUser?.username||currentUser?.Username||'?';
+  document.getElementById('user-nm').textContent=name;
+  document.getElementById('user-rl').textContent=role;
+  document.getElementById('user-av').textContent=name.substring(0,2).toUpperCase();
+  buildNav(role);
+  await Promise.all([loadSedesData(),loadHTData(),loadTiposTurnoData(),loadTurnosData()]);
+  populateSedeFilters();
+  updateWeekLabel();
+  navTo('horario');
+  loadNotifCount();
+}
+
+function buildNav(role){
+  const isAdmin=['ADMIN','SUPERADMIN','SUPERVISOR'].includes(role?.toUpperCase());
+  const items=[
+    {id:'horario',lbl:'Horario semanal',clr:'var(--acc)',sec:'Gestión'},
+    ...(isAdmin?[
+      {id:'programacion',lbl:'Prog. semanal (PTS)',clr:'var(--tea)'},
+      {id:'coberturas',lbl:'Coberturas',clr:'var(--red)',badge:true},
+      {id:'trabajadores',lbl:'Trabajadores',clr:'var(--pur)'},
+    ]:[]),
+    {id:'resumen',lbl:'Resumen del día',clr:'var(--grn)',sec:'Reportes'},
+    {id:'tardanzas',lbl:'Asistencia y Tardanza',clr:'var(--amb)'},
+    ...(isAdmin?[
+      {id:'reportes',lbl:'Reportes',clr:'var(--pur)'},
+    ]:[]),
+    {id:'notificaciones',lbl:'Notificaciones',clr:'var(--tea)',sec:'Personal'},
+    ...(isAdmin?[
+      {id:'sucursales',lbl:'Sucursales',clr:'var(--acc)',sec:'Maestros'},
+      {id:'turnos',lbl:'Turnos',clr:'var(--grn)'},
+      {id:'horarios-turno',lbl:'Sub-horarios (id_ht)',clr:'var(--tea)'},
+      {id:'tipo-turno',lbl:'Tipos de turno',clr:'var(--amb)'},
+    ]:[]),
+  ];
+  const nav=document.getElementById('sidebar-nav');
+  let lastSec='';
+  nav.innerHTML=items.map(it=>{
+    let h='';
+    if(it.sec&&it.sec!==lastSec){h+=`<div class="nav-sec">${it.sec}</div>`;lastSec=it.sec;}
+    h+=`<div class="nav-item" id="nav-${it.id}" onclick="navTo('${it.id}')">
+      <div class="nav-dot" style="background:${it.clr}"></div>${it.lbl}
+      ${it.badge?'<span class="nav-badge hidden" id="nb-cob">0</span>':''}
+    </div>`;
+    return h;
+  }).join('');
+}
+
+const PAGE_TITLES={horario:'Horario semanal',programacion:'Programación semanal · PTS',coberturas:'Coberturas y cambios',trabajadores:'Trabajadores',resumen:'Resumen del día',notificaciones:'Notificaciones',tardanzas:'Reporte de Asistencia y Tardanza',reportes:'Reportes',sucursales:'Maestros · Sucursales',turnos:'Maestros · Turnos','horarios-turno':'Maestros · Sub-horarios','tipo-turno':'Maestros · Tipos de turno'};
+
+function navTo(id){
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('nav-'+id)?.classList.add('active');
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-'+id)?.classList.add('active');
+  document.getElementById('pg-title').textContent=PAGE_TITLES[id]||id;
+  const showWk=['horario','programacion'].includes(id);
+  document.getElementById('wk-nav').style.display=showWk?'':'none';
+  if(id==='horario')loadTrabajadoresForGrid();
+  if(id==='programacion')loadPTS();
+  if(id==='coberturas')loadCoberturas();
+  if(id==='trabajadores')loadTrabajadores();
+  if(id==='resumen')initResumen();
+  if(id==='notificaciones')loadNotificaciones();
+  if(id==='tardanzas')initTardanzas();
+  if(id==='reportes')initReportes();
+  if(id==='sucursales')loadSucursales();
+  if(id==='turnos')loadTurnosPage();
+  if(id==='horarios-turno')loadHorariosTurnoPage();
+  if(id==='tipo-turno')loadTipoTurnoPage();
+}
+
+// ══ DATA ══════════════════════════════════════════════════
+async function loadSedesData(){try{const r=await apiFetch('/api/Rrhh/Sucursales?pageNumber=1&pageSize=100');if(r.ok){const d=await r.json();sedes=d.items||d||[];}}catch{}}
+async function loadHTData(){
+  try{
+    const r=await apiFetch('/api/Rrhh/HorarioTurno');
+    if(r.ok){
+      horariosTurno=await r.json();
+      window.htPorTurno={};   // htPorTurno[turnoId] = [ht...]
+      window.htRotativos=[];  // todos los HT de turnos rotativos
+      window.turnoTipo={};    // turnoTipo[turnoId] = 'ROT'|'FIJ'|'NF'|'VAR'
+
+      horariosTurno.forEach(h=>{
+        if(!h.turnoId)return;
+        // Agrupar por turnoId
+        if(!window.htPorTurno[h.turnoId])window.htPorTurno[h.turnoId]=[];
+        window.htPorTurno[h.turnoId].push(h);
+
+        // Clasificar turno por tipoTurnoId (BD: 1=FIJO, 2=ROTATIVO, 3=NO FISCALIZADO)
+        // también por nombre como fallback
+        const tipoId=h.turno?.tipoTurnoId||h.turno?.tipoTurno?.id||0;
+        const tipoNom=(h.turno?.tipoTurno?.nombreTipo||'').toUpperCase();
+        const htNom=(h.nombreHorario||'').toUpperCase();
+
+        // TIPO_TURNO de BD: 1=FIJO 2=ROTATIVO 3=NO FISCALIZADO 4=VARIABLE
+        let tipo='FIJ';
+        if(tipoId===2||tipoNom.includes('ROTATIVO')||htNom.match(/MAÑANA|TARDE|NOCHE/))tipo='ROT';
+        else if(tipoId===3||tipoNom.includes('FISCALIZADO')||tipoNom.includes('SIN MARC')||htNom.includes('SIN MARC'))tipo='NF';
+        else if(tipoId===4||tipoNom.includes('VARIABLE')||htNom.includes('VARIABLE'))tipo='VAR';
+
+        window.turnoTipo[h.turnoId]=tipo;
+        if(tipo==='ROT')window.htRotativos.push(h);
+      });
+    }
+  }catch{}
+}
+async function loadTiposTurnoData(){try{const r=await apiFetch('/api/Rrhh/TipoTurno?pageNumber=1&pageSize=50');if(r.ok){const d=await r.json();tiposTurno=d.items||d||[];}}catch{}}
+async function loadTurnosData(){try{const r=await apiFetch('/api/Rrhh/Turnos?pageNumber=1&pageSize=100');if(r.ok){const d=await r.json();allTurnos=d.items||d||[];}}catch{}}
+
+function populateSedeFilters(){
+  ['sede-fil','sede-trab-fil','res-sede'].forEach(id=>{
+    const el=document.getElementById(id);if(!el)return;
+    const cur=el.value;
+    el.innerHTML='<option value="">Todas las sedes</option>'+sedes.map(s=>`<option value="${s.id}"${cur==s.id?' selected':''}>${s.nombreSucursal}</option>`).join('');
+  });
+}
+function getHTName(id){return horariosTurno.find(h=>h.id===id)?.nombreHorario||`id_ht=${id}`;}
+function getTurnoNombre(id){return allTurnos.find(t=>t.id===id)?.nombreCodigo||`id=${id}`;}
+function getTipoNombre(id){return tiposTurno.find(t=>t.id===id)?.nombreTipo||`id=${id}`;}
+
+// ══ WEEK ═════════════════════════════════════════════════
+function getWeekDates(off=0){return Array.from({length:7},(_,i)=>{const d=new Date(WEEK_BASE);d.setDate(d.getDate()+off*7+i);return d;});}
+function fmt(d){return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0');}
+function fmtISO(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function isToday(d){return d.toDateString()===new Date().toDateString();}
+function changeWeek(dir){
+  weekOffset+=dir;
+  updateWeekLabel();
+  ptsSemana={}; // limpiar cache PTS al cambiar semana
+  const p=document.querySelector('.page.active');
+  if(p?.id==='page-horario')loadTrabajadoresForGrid();
+  if(p?.id==='page-programacion'){ptsPagina=1;loadPTS();}
+}
+function updateWeekLabel(){const d=getWeekDates(weekOffset);document.getElementById('wk-lbl').textContent=DIAS_SH[0]+' '+fmt(d[0])+' – '+DIAS_SH[6]+' '+fmt(d[6]);}
+
+// ══ MAP TRAB ══════════════════════════════════════════════
+function mapTrab(t){
+  const tId=t.turnoId||t.idTurno||t.id_turno;
+
+  // Detectar tipo: turnoTipo (del índice de HorarioTurno) > tipoTurno del objeto > nombre del HT
+  let tipo='FIJ';
+  if(tId&&window.turnoTipo?.[tId]){
+    tipo=window.turnoTipo[tId];
+  } else {
+    const tipoNom=(t.tipoTurno?.nombreTipo||t.turno?.tipoTurno?.nombreTipo||'').toUpperCase();
+    // TIPO_TURNO BD: 1=FIJO 2=ROTATIVO 3=NO FISCALIZADO 4=VARIABLE
+    const tipoId=t.tipoTurnoId||t.turno?.tipoTurnoId||0;
+    const htNom=getHTName(t.idHorarioTurno||t.horarioTurnoId||0).toUpperCase();
+    if(tipoId===2||tipoNom.includes('ROTATIVO')||htNom.match(/MAÑANA|TARDE|NOCHE/))tipo='ROT';
+    else if(tipoId===3||tipoNom.includes('FISCALIZADO')||htNom.includes('SIN MARC'))tipo='NF';
+    else if(tipoId===4||tipoNom.includes('VARIABLE')||htNom.includes('VARIABLE'))tipo='VAR';
+  }
+
+  return{
+    id:t.id,
+    name:t.persona?.apellidosNombres||t.apellidosNombres||'—',
+    dni:t.persona?.dni||t.dni||'',
+    area:t.areaDepartamento||'—',
+    sucursalId:t.sucursalId,
+    idHorarioTurno:t.idHorarioTurno||t.horarioTurnoId,
+    idTurno:tId,
+    tipo,
+    rol:t.cargo||'',
+    idEstado:t.idEstado
+  };
+}
+
+// ══ GRID HORARIO ══════════════════════════════════════════
+function sk(wid,day){return`${wid}_${day}_${weekOffset}`;}
+
+function getShiftFromPTS(w,day){
+  const k=sk(w.id,day);
+  if(shiftOverrides[k]!==undefined)return shiftOverrides[k];
+  const dates=getWeekDates(weekOffset);
+  const fecha=fmtISO(dates[day]);
+  const pts=ptsSemana[w.id]?.[fecha];
+  if(pts){
+    const e=(pts.estado||'').toLowerCase();
+    if(e==='vacaciones')return'V';
+    if(e==='descanso')return'D';
+    if(e==='boleta'||e==='dia-boleta')return'B';
+    if(e==='sin-asignar')return null;
+    const htN=(pts.horarioTurnoNombre||getHTName(pts.horarioTurnoId||w.idHorarioTurno)||'').toUpperCase();
+    if(htN.includes('MAÑANA')||htN.includes('DIURNO'))return'M';
+    if(htN.includes('TARDE'))return'T';
+    if(htN.includes('NOCHE')||htN.includes('NOCTURNO'))return'N';
+    return w.tipo==='FIJ'?'F':'M';
+  }
+  const htN=(getHTName(w.idHorarioTurno)||'').toUpperCase();
+  if(htN.includes('MAÑANA')||htN.includes('DIURNO'))return'M';
+  if(htN.includes('TARDE'))return'T';
+  if(htN.includes('NOCHE')||htN.includes('NOCTURNO'))return'N';
+  if(htN.includes('L-V')||htN.includes('FIJO')||htN.includes('HORARIO L'))return'F';
+  if(w.tipo==='FIJ')return'F';
+  return null;
+}
+
+async function loadTrabajadoresForGrid(){
+  let all=[],page=1,total=999;
+  while(all.length<total){
+    try{
+      const r=await apiFetch(`/api/Rrhh/Trabajadores?pageNumber=${page}&pageSize=100`);
+      if(!r.ok)break;
+      const d=await r.json();
+      const items=d.items||d||[];
+      total=d.totalCount||d.total||items.length;
+      all=[...all,...items];
+      if(items.length<100||all.length>=total)break;
+      page++;
+    }catch{break;}
+  }
+  allTrabajadores=all.map(mapTrab);
+
+  // Enriquecer con idTurno/tipo desde AsignacionTurno
+  try{
+    const ra=await apiFetch(`/api/Rrhh/AsignacionTurno?esVigente=true&pageSize=999`);
+    if(ra.ok){
+      const da=await ra.json();
+      (da.items||da||[]).forEach(a=>{
+        const w=allTrabajadores.find(x=>x.id===a.trabajadorId);
+        if(!w||!a.turnoId)return;
+        w.idTurno=a.turnoId;
+        if(a.horarioTurnoId)w.idHorarioTurno=a.horarioTurnoId;
+        if(window.turnoTipo?.[a.turnoId])w.tipo=window.turnoTipo[a.turnoId];
+        else{
+          const ts=(a.tipoTurno||'').toUpperCase();
+          if(ts.includes('ROTATIVO'))w.tipo='ROT';
+          else if(ts.includes('FISCALIZADO'))w.tipo='NF';
+          else if(ts.includes('VARIABLE'))w.tipo='VAR';
+          else w.tipo='FIJ';
+        }
+      });
+    }
+  }catch{}
+
+  // Cargar PTS semana con nueva estructura items[].dias[]
+  const dates=getWeekDates(weekOffset);
+  ptsSemana={};
+  try{
+    const r=await apiFetch(`/api/Rrhh/ProgramacionSemanal?fechaInicio=${fmtISO(dates[0])}&fechaFin=${fmtISO(dates[6])}&pageSize=999`);
+    if(r.ok){
+      const data=await r.json();
+      (data.items||[]).forEach(item=>{
+        const wid=item.trabajadorId;
+        ptsSemana[wid]={};
+        (item.dias||[]).forEach(dia=>{
+          const fecha=dia.fecha?.split('T')[0]||dia.fecha;
+          ptsSemana[wid][fecha]={
+            fecha,
+            horarioTurnoId   :dia.horarioTurnoId,
+            horarioTurnoNombre:dia.horarioTurnoNombre,
+            turnoId          :dia.turnoId,
+            turnoNombre      :dia.turnoNombre,
+            estado           :dia.estado
+          };
+        });
+      });
+    }
+  }catch{}
+
+  renderGrid();renderStats();
+}
+
+function getFiltered(){
+  const q=(document.getElementById('srch-hor')?.value||'').toLowerCase();
+  const sf=document.getElementById('sede-fil')?.value||'';
+  return allTrabajadores.filter(w=>{
+    const mT=filterTipo==='ALL'||w.tipo===filterTipo;
+    const mQ=!q||w.name.toLowerCase().includes(q)||w.dni.includes(q)||w.area.toLowerCase().includes(q);
+    const mS=!sf||String(w.sucursalId)===sf;
+    return mT&&mQ&&mS;
+  });
+}
+function setFil(f){filterTipo=f;['ALL','ROT','FIJ','NF'].forEach(x=>document.getElementById('f-'+x)?.classList.toggle('on',x===f));renderGrid();renderStats();}
+
+function renderStats(){
+  const f=getFiltered();
+  let asig=0,desc=0,sinA=0;
+  f.forEach(w=>{for(let i=0;i<5;i++){const s=getShiftFromPTS(w,i);if(s==='D'||s==='B'||s==='V')desc++;else if(s)asig++;else if(w.tipo==='ROT')sinA++;}});
+  document.getElementById('stats-horario').innerHTML=[
+    {l:'Trabajadores',v:f.length,s:'en vista',c:''},
+    {l:'Asignados',v:asig,s:'esta semana',c:''},
+    {l:'Descansos/Vac.',v:desc,s:'programados',c:''},
+    {l:'Sin asignar',v:sinA,s:sinA>0?'⚠ requieren atención':'✓ al día',c:sinA>0?'color:var(--red)':'color:var(--grn)'},
+  ].map(s=>`<div class="stat"><div class="stat-lbl">${s.l}</div><div class="stat-val" style="${s.c}">${s.v}</div><div class="stat-sub">${s.s}</div></div>`).join('');
+  const ab=document.getElementById('alert-sin');
+  if(sinA>0){ab.classList.remove('hidden');document.getElementById('alert-sin-txt').textContent=`${sinA} celda(s) sin turno en rotativos esta semana.`;}
+  else ab.classList.add('hidden');
+}
+
+function renderGrid(){
+  const dates=getWeekDates(weekOffset);
+  const f=getFiltered();
+  // Agrupar por SEDE → ordenar por apellido dentro
+  const bySede={};
+  f.forEach(w=>{
+    const sede=sedes.find(s=>s.id===w.sucursalId);
+    const key=sede?.nombreSucursal||'Sin sede asignada';
+    if(!bySede[key])bySede[key]=[];
+    bySede[key].push(w);
+  });
+  Object.values(bySede).forEach(arr=>arr.sort((a,b)=>a.name.localeCompare(b.name)));
+
+  let html=`<thead><tr>
+    <th class="th-w">Trabajador</th>
+    ${DIAS_ES.map((d,i)=>`<th style="text-align:center;min-width:104px${isToday(dates[i])?';color:var(--acc)':''}">${d}<br><span style="font-family:var(--mono);font-size:9px;font-weight:400;opacity:.7">${fmt(dates[i])}</span></th>`).join('')}
+  </tr></thead><tbody>`;
+
+  if(!f.length)html+=`<tr><td colspan="8" style="padding:40px;text-align:center;color:var(--txt3)">Sin trabajadores</td></tr>`;
+
+  Object.entries(bySede).forEach(([sedeName,workers])=>{
+    html+=`<tr class="grp-hdr"><td colspan="8">📍 ${sedeName} · ${workers.length} trabajadores</td></tr>`;
+    workers.forEach(w=>{
+      const htName=getHTName(w.idHorarioTurno);
+      html+=`<tr><td class="td-w">
+        <div class="w-name">${w.name.split(' ').slice(0,3).join(' ')}<span class="tipo-tag tipo-${w.tipo}">${w.tipo}</span></div>
+        <div class="w-meta"><span>${w.area}</span>${w.rol?`<span style="color:var(--amb);font-size:9px;font-family:var(--mono)">${w.rol}</span>`:''}</div>
+        <div class="w-meta" style="margin-top:1px"><span style="color:var(--txt3);font-family:var(--mono);font-size:9px">id_ht=${w.idHorarioTurno||'?'} · ${htName}</span></div>
+      </td>`;
+      DIAS_ES.forEach((_,i)=>{
+        const s=getShiftFromPTS(w,i);
+        const isWE=i>=5,isTd=isToday(dates[i]);
+        const isFijWE=w.tipo==='FIJ'&&isWE&&!s;
+        const dtISO=fmtISO(dates[i]);
+        const cob=allCoberturas.find(c=>c.fecha===dtISO&&(c.idTrabajadorCubre===w.id||c.idTrabajadorAusente===w.id)&&c.estado!=='RECHAZADO');
+        let cell='';
+        if(isFijWE)cell=`<div class="cell-dash">—</div>`;
+        else if(cob?.tipoCobertura==='CAMBIO'||cob?.tipo==='CAMBIO')cell=`<div class="chip S"><span class="chip-name">SWAP</span></div>`;
+        else if((cob?.tipoCobertura==='COBERTURA'||cob?.tipo==='COBERTURA')&&(cob?.idTrabajadorAusente===w.id))cell=`<div class="chip X"><span class="chip-name">Falta cub.</span></div>`;
+        else if(!s)cell=`<div class="chip-empty${w.tipo==='NF'?' nf':''}">+ asignar</div>`;
+        else{
+          const CHIP={M:{cls:'M',n:'Mañana',t:'06:00–14:00'},T:{cls:'T',n:'Tarde',t:'14:00–22:00'},N:{cls:'N',n:'Noche',t:'22:00–06:00'},D:{cls:'D',n:'Descanso',t:'día libre'},B:{cls:'B',n:'Boleta',t:''},F:{cls:'F',n:'Fijo',t:'08:00–18:30'},V:{cls:'V',n:'Vac.',t:''}};
+          const d=CHIP[s]||CHIP.F;
+          cell=`<div class="chip ${d.cls}"><span class="chip-name">${d.n}</span>${d.t?`<span class="chip-time">${d.t}</span>`:''}</div>`;
+        }
+        html+=`<td class="td-day${isTd?' is-today':''}${isWE?' is-we':''}" onclick="${isFijWE?'':(`openShift(${w.id},${i})`)}">${cell}</td>`;
+      });
+      html+='</tr>';
+    });
+  });
+  html+='</tbody>';
+  document.getElementById('tbl-sched').innerHTML=html;
+}
+
+// ══ SHIFT DRAWER (FIJO + ROTATIVO) ════════════════════════
+function openShift(wid,day){
+  const w=allTrabajadores.find(x=>x.id===wid);if(!w)return;
+  const dates=getWeekDates(weekOffset);
+  shiftEdit={wid,day};
+  tempShift=getShiftFromPTS(w,day);
+  const fecha=fmtISO(dates[day]);
+  const rec=ptsSemana[w.id]?.[fecha];
+  tempHtId=rec?.horarioTurnoId||w.idHorarioTurno;
+
+  document.getElementById('ds-title').textContent=w.tipo==='FIJ'?'Turno fijo — asignar día':'Turno rotativo — asignar día';
+  document.getElementById('ds-sub').textContent=`${w.name.split(' ').slice(0,2).join(' ')} · ${DIAS_ES[day]} ${fmt(dates[day])}`;
+
+  const htDisp=horariosTurno.filter(h=>w.idTurno?h.turnoId===w.idTurno:true);
+
+  // Banner de cobertura — solo si el día ya está asignado (viene de BD)
+  const tieneAsignado=rec&&rec.estado&&rec.estado!=='sin-asignar';
+  const cobBanner=tieneAsignado?`
+    <div class="warn-box" style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+      <div>
+        <strong>${rec.horarioTurnoNombre||'Turno asignado'}</strong> · ${DIAS_ES[day]} ${fmt(dates[day])}<br>
+        <span style="font-size:10px">¿Este trabajador faltará? Registra una cobertura.</span>
+      </div>
+      <button class="btn btn-sm" style="flex-shrink:0;border-color:var(--red);color:var(--red)" 
+        onclick="closeShift();openCobDesdeHorario(${wid},'${fecha}',${tempHtId||'null'},'${rec.horarioTurnoNombre||''}')">
+        🛡 Registrar cobertura
+      </button>
+    </div>`:'';
+
+  let body='';
+
+  if(w.tipo==='FIJ'){
+    body=cobBanner+`
+      <div class="fld"><div class="fld-lbl">Tipo de día</div>
+      <div class="shift-opts" id="sopts">
+        ${[{k:'F',n:'Trabaja (Fijo)',t:'Según horario fijo',bg:'#1e293b',fg:'#94a3b8'},
+           {k:'D',n:'Descanso',t:'día libre',bg:'#1c1409',fg:'#fcd34d'},
+           {k:'B',n:'Día boleta',t:'descuento en boleta',bg:'#052e16',fg:'#86efac'},
+           {k:'V',n:'Vacaciones',t:'',bg:'#0c1a2e',fg:'#7dd3fc'}].map(o=>`
+          <div class="shift-opt${tempShift===o.k?' sel':''}" onclick="selShift('${o.k}')">
+            <div class="shift-clr" style="background:${o.bg};color:${o.fg}">${o.k}</div>
+            <div style="flex:1"><div style="font-size:13px;font-weight:600">${o.n}</div><div style="font-size:10px;color:var(--txt2);font-family:var(--mono)">${o.t}</div></div>
+            <div class="shift-radio"></div>
+          </div>`).join('')}
+      </div></div>
+      <div class="info-box">Para el turno <strong>FIJO</strong>, el horario de días de trabajo se lee desde <strong>HORARIOS_DETALLE</strong> por dia_semana. Solo necesitas marcar si es Descanso, Boleta o Vacaciones — el SP cierre usa el horario base automáticamente.</div>`;
+  } else {
+    // Rotativos
+    body=cobBanner+`
+      <div class="fld"><div class="fld-lbl">Estado del día</div>
+      <div class="shift-opts" id="sopts">
+        ${[{k:'W',n:'Trabaja',t:'según sub-horario abajo',bg:'#0a1a2e',fg:'#7dd3fc'},
+           {k:'D',n:'Descanso',t:'día libre',bg:'#1c1409',fg:'#fcd34d'},
+           {k:'B',n:'Día boleta',t:'descuento en boleta',bg:'#052e16',fg:'#86efac'},
+           {k:'V',n:'Vacaciones',t:'',bg:'#0c1a2e',fg:'#7dd3fc'}].map(o=>`
+          <div class="shift-opt${(tempShift==='W'||tempShift==='M'||tempShift==='T'||tempShift==='N')?o.k==='W'?'sel':'':tempShift===o.k?' sel':''}" onclick="selShift('${o.k}')">
+            <div class="shift-clr" style="background:${o.bg};color:${o.fg}">${o.k}</div>
+            <div style="flex:1"><div style="font-size:13px;font-weight:600">${o.n}</div><div style="font-size:10px;color:var(--txt2);font-family:var(--mono)">${o.t}</div></div>
+            <div class="shift-radio"></div>
+          </div>`).join('')}
+      </div></div>
+      <div class="divider"></div>
+      <div class="fld"><div class="fld-lbl">Sub-horario exacto del día (id_horario_turno)</div>
+        <div class="ht-grid" id="ht-opts">
+          ${htDisp.map(h=>{
+            const nm=h.nombreHorario.toUpperCase();
+            const cls=nm.includes('MAÑANA')?'#5eead4':nm.includes('TARDE')?'#93c5fd':'#c4b5fd';
+            const ltr=nm.includes('MAÑANA')?'M':nm.includes('TARDE')?'T':nm.includes('NOCHE')?'N':'?';
+            return`<div class="ht-opt${tempHtId===h.id?' sel':''}" onclick="selHT(${h.id})">
+              <div class="ht-chip" style="color:${cls}">${ltr}</div>
+              <div class="ht-time">${h.nombreHorario}</div>
+              <div class="ht-id">id_ht=${h.id}</div>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>
+      <div class="info-box">Guarda en <strong>PROGRAMACION_TURNOS_SEMANAL</strong>:<br>
+      id_trabajador=${wid}, fecha=${fmtISO(dates[day])}, id_horario_turno=<strong id="prev-ht">${tempHtId||'?'}</strong><br>
+      El SP cierre lee este id_ht para calcular las horas teóricas del día.</div>`;
+  }
+  document.getElementById('ds-body').innerHTML=body;
+  openDrawer('ov-shift','dr-shift');
+}
+function selShift(k){
+  tempShift=k;
+  document.querySelectorAll('#sopts .shift-opt').forEach(el=>el.classList.remove('sel'));
+  event.currentTarget.classList.add('sel');
+}
+function selHT(id){
+  tempHtId=id;
+  document.querySelectorAll('#ht-opts .ht-opt').forEach(el=>el.classList.remove('sel'));
+  event.currentTarget.classList.add('sel');
+  const prev=document.getElementById('prev-ht');
+  if(prev)prev.textContent=id;
+}
+async function saveShift(){
+  if(!shiftEdit)return;
+  const{wid,day}=shiftEdit;
+  const w=allTrabajadores.find(x=>x.id===wid);
+  const dates=getWeekDates(weekOffset);
+  const fecha=fmtISO(dates[day]);
+
+  // Determine estado
+  let estado=tempShift;
+  const htId=tempHtId||w.idHorarioTurno||0;
+
+  // For rotativo: map W to actual chip
+  if(w.tipo==='ROT'&&estado==='W'){
+    const htN=(getHTName(htId)||'').toUpperCase();
+    estado=htN.includes('MAÑANA')?'M':htN.includes('TARDE')?'T':htN.includes('NOCHE')?'N':'M';
+  }
+
+  shiftOverrides[sk(wid,day)]=estado;
+  ptsOverrides[`${wid}_${day}_${weekOffset}`]={ht:htId,estado};
+
+  // Guardar día individual via nuevo endpoint unificado
+  try{
+    const body={
+      fechaInicio:fecha,
+      fechaFin:fecha,
+      programaciones:[{
+        trabajadorId:wid,
+        fecha:fecha,
+        idHorarioTurno:htId,
+        esDescanso:estado==='D',
+        esDiaBoleta:estado==='B',
+        esVacaciones:estado==='V'
+      }]
+    };
+    const r=await apiFetch('/api/Rrhh/ProgramacionSemanal',{method:'POST',body:JSON.stringify(body)});
+    if(r.ok){toast('Turno guardado en PTS ✓');}
+    else{const e=await r.json();toast(e.mensaje||e.message||'Error','err');}
+  }catch{toast('Guardado local (sin conexión)','warn');}
+
+  closeShift();renderGrid();renderStats();
+}
+function clearShift(){if(!shiftEdit)return;delete shiftOverrides[sk(shiftEdit.wid,shiftEdit.day)];closeShift();renderGrid();renderStats();}
+function closeShift(){closeDrawer('ov-shift','dr-shift');shiftEdit=null;tempShift=null;tempHtId=null;}
+
+async function copyPrevWeek(){
+  let n=0;
+  getFiltered().filter(w=>w.tipo==='ROT').forEach(w=>{
+    for(let i=0;i<7;i++){
+      const kP=`${w.id}_${i}_${weekOffset-1}`,kC=sk(w.id,i);
+      if(shiftOverrides[kC]===undefined){const prev=shiftOverrides[kP]!==undefined?shiftOverrides[kP]:getShiftFromPTS(w,i);if(prev){shiftOverrides[kC]=prev;n++;}}
+    }
+  });
+  renderGrid();if(n>0)toast(`${n} turno(s) copiados ✓`);
+}
+
+async function publishWeek(){
+  const dates=getWeekDates(weekOffset);
+  const workers=getFiltered();
+  if(!workers.length){toast('No hay trabajadores en la vista','warn');return;}
+
+  const programaciones=[];
+  workers.forEach(w=>{
+    dates.forEach((d,i)=>{
+      const s=shiftOverrides[sk(w.id,i)]!==undefined?shiftOverrides[sk(w.id,i)]:getShiftFromPTS(w,i);
+      if(!s||s===null)return; // sin cambio definido
+      const ptsKey=`${w.id}_${i}_${weekOffset}`;
+      const htId=ptsOverrides[ptsKey]?.ht||w.idHorarioTurno||0;
+      programaciones.push({
+        trabajadorId:w.id,
+        fecha:fmtISO(d),
+        idHorarioTurno:htId,
+        esDescanso:s==='D',
+        esDiaBoleta:s==='B',
+        esVacaciones:s==='V'
+      });
+    });
+  });
+
+  if(!programaciones.length){toast('No hay cambios para publicar','warn');return;}
+
+  try{
+    const r=await apiFetch('/api/Rrhh/ProgramacionSemanal',{method:'POST',body:JSON.stringify({
+      fechaInicio:fmtISO(dates[0]),
+      fechaFin:fmtISO(dates[6]),
+      programaciones
+    })});
+    if(r.ok){
+      const res=await r.json();
+      toast(`Semana publicada · ${res.registrosGrabados||programaciones.length} registros ✓`);
+      shiftOverrides={};ptsOverrides={};loadTrabajadoresForGrid();
+    }else{const e=await r.json();toast(e.mensaje||e.message||'Error al publicar','err');}
+  }catch{toast('Error de conexión','err');}
+}
+
+// ══ PTS PAGE ══════════════════════════════════════════════
+function setPTSFil(f){
+  ptsFil=f;
+  ['ALL','ROT','FIJ'].forEach(x=>document.getElementById('pts-f-'+x)?.classList.toggle('on',x===f));
+  setPTSPag(1); // reset a página 1 al cambiar filtro
+}
+function searchPTS(){
+  setPTSPag(1); // reset a página 1 al buscar
+}
+function setPTSPag(p){
+  if(p<1||p>ptsTotalPaginas&&ptsTotalPaginas>0)return;
+  ptsPagina=p;
+  loadPTS();
+}
+function changePTSPageSize(v){
+  ptsPageSize=parseInt(v);
+  setPTSPag(1);
+}
+
+async function loadPTS(){
+  const grid=document.getElementById('pts-grid');
+  const loading=document.getElementById('pts-loading');
+  grid.innerHTML='';
+  loading?.classList.remove('hidden');
+
+  const q=(document.getElementById('srch-pts')?.value||'').trim().toLowerCase();
+  const sedeId=document.getElementById('pts-sede-fil')?.value||'';
+  const dates=getWeekDates(weekOffset);
+  const fechaInicio=fmtISO(dates[0]);
+  const fechaFin=fmtISO(dates[6]);
+
+  try{
+    // ProgramacionSemanal es la fuente principal — ya trae trabajador + días juntos
+    let url=`/api/Rrhh/ProgramacionSemanal?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}`;
+    url+=`&pageNumber=${ptsPagina}&pageSize=${ptsPageSize}`;
+    if(q)url+=`&search=${encodeURIComponent(q)}`;
+    if(sedeId)url+=`&sucursalId=${sedeId}`;
+
+    const r=await apiFetch(url);
+    if(!r.ok)throw new Error('Error');
+    const d=await r.json();
+
+    // La API devuelve { fechaInicio, fechaFin, items: [...] }
+    // items[].trabajadorId, items[].trabajadorNombre, items[].dias[]
+    const rawItems=d.items||d||[];
+    ptsTotalCount   = d.totalCount||d.total||rawItems.length;
+    ptsTotalPaginas = d.totalPages||Math.ceil(ptsTotalCount/ptsPageSize)||1;
+
+    // Convertir al formato interno del frontend
+    // Necesitamos datos del trabajador (sucursal, tipo) — traerlos del cache si ya están
+    // o mapear desde lo que traiga ProgramacionSemanal
+    const paginaActualIds=new Set(rawItems.map(p=>p.trabajadorId));
+
+    // Si no tenemos los trabajadores en el cache, cargarlos en batch
+    const faltantes=[...paginaActualIds].filter(id=>!allTrabajadores.find(w=>w.id===id));
+    if(faltantes.length){
+      try{
+        const rt=await apiFetch(`/api/Rrhh/Trabajadores?pageNumber=${ptsPagina}&pageSize=${ptsPageSize}`);
+        if(rt.ok){
+          const dt=await rt.json();
+          (dt.items||dt||[]).forEach(t=>{
+            if(!allTrabajadores.find(w=>w.id===t.id))allTrabajadores.push(mapTrab(t));
+          });
+        }
+      }catch{}
+    }
+
+    // ── Enriquecer con idTurno desde AsignacionTurno ────────────────
+    // GET /api/Rrhh/AsignacionTurno devuelve las asignaciones vigentes
+    // BD: id_asignacion, id_trabajador, id_turno, id_horario_turno, es_vigente
+    const sinTurno=[...paginaActualIds].filter(id=>{
+      const w=allTrabajadores.find(x=>x.id===id);
+      return !w?.idTurno;
+    });
+    if(sinTurno.length){
+      try{
+        const ra=await apiFetch(`/api/Rrhh/AsignacionTurno?esVigente=true&pageSize=999`);
+        if(ra.ok){
+          const da=await ra.json();
+          const asigs=da.items||da||[];
+          asigs.forEach(a=>{
+            // Campos exactos del API: trabajadorId, turnoId, tipoTurno(string), horarioTurnoId
+            const wid = a.trabajadorId;
+            const tId  = a.turnoId;
+            const htId = a.horarioTurnoId;
+            const tipoStr=(a.tipoTurno||'').toUpperCase(); // "TURNO ROTATIVO" | "TURNO FIJO" | etc.
+            const w=allTrabajadores.find(x=>x.id===wid);
+            if(!w||!tId)return;
+            w.idTurno=tId;
+            if(htId)w.idHorarioTurno=htId;
+            // tipoTurno viene como string directo — mapear a código interno
+            if(window.turnoTipo?.[tId]){
+              w.tipo=window.turnoTipo[tId]; // del índice construido por HorarioTurno
+            } else {
+              // fallback por nombre de tipoTurno
+              if(tipoStr.includes('ROTATIVO'))w.tipo='ROT';
+              else if(tipoStr.includes('FISCALIZADO')||tipoStr.includes('SIN MARC'))w.tipo='NF';
+              else if(tipoStr.includes('VARIABLE'))w.tipo='VAR';
+              else w.tipo='FIJ';
+            }
+          });
+        }
+      }catch(e){
+        // Fallback: si el endpoint falla, inferir tipo desde horariosTurno por idHorarioTurno
+        allTrabajadores.forEach(w=>{
+          if(w.idTurno||!w.idHorarioTurno)return;
+          const ht=horariosTurno.find(h=>h.id===w.idHorarioTurno);
+          if(!ht)return;
+          w.idTurno=ht.turnoId;
+          if(window.turnoTipo?.[ht.turnoId])w.tipo=window.turnoTipo[ht.turnoId];
+        });
+      }
+    }
+
+    // Reconstruir ptsSemana para la página actual a partir de items de ProgramacionSemanal
+    // Limpiar solo los de esta página para no mezclar con otras
+    rawItems.forEach(item=>{
+      const wid=item.trabajadorId;
+      ptsSemana[wid]={};  // objeto fecha→dia para acceso O(1)
+      (item.dias||[]).forEach(dia=>{
+        const fecha=dia.fecha?.split('T')[0]||dia.fecha;
+        ptsSemana[wid][fecha]={
+          fecha,
+          horarioTurnoId   : dia.horarioTurnoId,
+          horarioTurnoNombre: dia.horarioTurnoNombre,
+          turnoId          : dia.turnoId,
+          turnoNombre      : dia.turnoNombre,
+          estado           : dia.estado   // "sin-asignar"|"trabaja"|"descanso"|"boleta"|"vacaciones"
+        };
+      });
+    });
+
+    renderPTS(rawItems);
+    renderPTSPager();
+
+    // Poblar filtro sede
+    const sFil=document.getElementById('pts-sede-fil');
+    if(sFil&&sFil.options.length<=1){
+      sFil.innerHTML='<option value="">Todas las sedes</option>'+sedes.map(s=>`<option value="${s.id}">${s.nombreSucursal}</option>`).join('');
+    }
+  }catch(e){
+    grid.innerHTML=`<div style="padding:40px;text-align:center;color:var(--red);grid-column:1/-1">Error al cargar programación</div>`;
+  }finally{
+    loading?.classList.add('hidden');
+  }
+}
+
+function renderPTSPager(){
+  const info=document.getElementById('pts-pager-info');
+  const pages=document.getElementById('pts-pager-pages');
+  const btnF=document.getElementById('pts-btn-first');
+  const btnP=document.getElementById('pts-btn-prev');
+  const btnN=document.getElementById('pts-btn-next');
+  const btnL=document.getElementById('pts-btn-last');
+
+  const desde=(ptsPagina-1)*ptsPageSize+1;
+  const hasta=Math.min(ptsPagina*ptsPageSize,ptsTotalCount);
+  if(info)info.textContent=`Mostrando ${desde}–${hasta} de ${ptsTotalCount} trabajadores`;
+
+  // Botones prev/next/first/last
+  if(btnF)btnF.disabled=ptsPagina<=1;
+  if(btnP)btnP.disabled=ptsPagina<=1;
+  if(btnN)btnN.disabled=ptsPagina>=ptsTotalPaginas;
+  if(btnL)btnL.disabled=ptsPagina>=ptsTotalPaginas;
+
+  // Números de página (máx 7 visibles con ellipsis)
+  if(!pages)return;
+  const total=ptsTotalPaginas;
+  const cur=ptsPagina;
+  let nums=[];
+  if(total<=7){
+    nums=Array.from({length:total},(_,i)=>i+1);
+  }else{
+    nums=[1];
+    if(cur>3)nums.push('…');
+    for(let i=Math.max(2,cur-1);i<=Math.min(total-1,cur+1);i++)nums.push(i);
+    if(cur<total-2)nums.push('…');
+    nums.push(total);
+  }
+  pages.innerHTML=nums.map(n=>
+    n==='…'
+      ? `<span style="padding:0 4px;color:var(--txt3);font-family:var(--mono);font-size:11px">…</span>`
+      : `<button class="btn btn-sm${n===cur?' btn-primary':''}"
+           style="${n===cur?'':''}min-width:30px"
+           onclick="setPTSPag(${n})">${n}</button>`
+  ).join('');
+}
+
+function renderPTS(rawItems){
+  lastPTSItems=rawItems||lastPTSItems;
+  const dates=getWeekDates(weekOffset);
+  const grid=document.getElementById('pts-grid');
+  grid.style.gridTemplateColumns='220px repeat(7,1fr)';
+
+  // Separar: ya tienen al menos 1 día guardado en BD vs todos sin asignar
+  const yaProgramados=[], porProgramar=[];
+  (rawItems||[]).forEach(item=>{
+    const diasData=Object.values(ptsSemana[item.trabajadorId]||{});
+    const tieneAlgo=diasData.some(d=>d.estado&&d.estado!=='sin-asignar');
+    if(tieneAlgo)yaProgramados.push(item); else porProgramar.push(item);
+  });
+
+  const filtrar=arr=>{
+    if(ptsFil==='ALL')return arr;
+    return arr.filter(item=>{
+      const w=allTrabajadores.find(x=>x.id===item.trabajadorId);
+      const tipo=w?.tipo||'FIJ';
+      return ptsFil==='ROT'?tipo==='ROT':tipo==='FIJ';
+    });
+  };
+  const grupoProg=filtrar(yaProgramados);
+  const grupoPend=filtrar(porProgramar);
+
+  let html=`<div class="pts-cell pts-hdr" style="font-size:10px;font-weight:600">Trabajador</div>`;
+  dates.forEach((d,i)=>html+=`<div class="pts-cell pts-hdr">${DIAS_SH[i]}<br><span style="font-family:var(--mono);font-size:9px">${fmt(d)}</span></div>`);
+
+  if(!grupoProg.length&&!grupoPend.length){
+    html+=`<div style="grid-column:1/-1;padding:40px;text-align:center;color:var(--txt3)">Sin trabajadores</div>`;
+    grid.innerHTML=html;return;
+  }
+
+  const renderFila=(item,yaGuardado)=>{
+    const wid=item.trabajadorId;
+    const w=allTrabajadores.find(x=>x.id===wid);
+    const sede=sedes.find(s=>s.id===w?.sucursalId);
+    let tipo=w?.tipo||'FIJ';
+    let idTurnoBase=w?.idTurno||null;
+    const diasData=Object.values(ptsSemana[wid]||{});
+    if(!idTurnoBase){const dc=diasData.find(d=>d.turnoId);if(dc)idTurnoBase=dc.turnoId;}
+    const htNombresDelTrabajador=diasData.map(d=>d.horarioTurnoNombre||'').join(' ').toUpperCase();
+    if(htNombresDelTrabajador.match(/MAÑANA|TARDE|NOCHE|DIURNO|NOCTURNO/))tipo='ROT';
+    let htDisp=[];
+    if(idTurnoBase&&window.htPorTurno?.[idTurnoBase])htDisp=window.htPorTurno[idTurnoBase];
+    else if(tipo==='ROT')htDisp=window.htRotativos||horariosTurno.filter(h=>(h.nombreHorario||'').toUpperCase().match(/MAÑANA|TARDE|NOCHE|DIURNO|NOCTURNO/));
+    if(htDisp.length>0&&tipo==='FIJ')tipo='ROT';
+
+    const workerBg=yaGuardado?'var(--surf2)':'var(--surf3)';
+    html+=`<div class="pts-cell pts-worker" style="background:${workerBg}">
+      <div style="font-size:11px;font-weight:600;display:flex;align-items:center;gap:4px">
+        ${item.trabajadorNombre.split(' ').slice(0,2).join(' ')}
+        ${yaGuardado?'<span style="font-size:8px;opacity:.45" title="Ya tiene programacion guardada">🔒</span>':''}
+      </div>
+      <div style="font-size:9px;color:var(--txt3);font-family:var(--mono)">
+        <span class="tipo-tag tipo-${tipo}">${tipo}</span> · ${sede?.nombreSucursal||'—'}
+      </div>
+    </div>`;
+
+    dates.forEach((d,i)=>{
+      const dateISO=fmtISO(d);
+      const ptsKey=`${wid}_${i}_${weekOffset}`;
+      const ov=ptsOverrides[ptsKey];
+      const rec=ptsSemana[wid]?.[dateISO];
+      let estadoAPI='?';
+      if(rec?.estado){
+        const e=rec.estado.toLowerCase();
+        if(e==='descanso')estadoAPI='D';
+        else if(e==='boleta'||e==='dia-boleta')estadoAPI='B';
+        else if(e==='vacaciones')estadoAPI='V';
+        else if(e==='trabaja'||e==='asignado')estadoAPI='W';
+      }
+      const estado=ov?.estado??estadoAPI;
+      const idHt=ov?.ht||rec?.horarioTurnoId||null;
+      const htNombre=rec?.horarioTurnoNombre||null;
+      const esDiaGuardado=yaGuardado&&estadoAPI!=='?'&&!ov;
+      const cellBg=esDiaGuardado?'background:color-mix(in srgb,var(--surf) 94%,var(--acc) 6%)':'background:var(--surf)';
+
+      html+=`<div class="pts-cell" style="display:flex;flex-direction:column;align-items:center;padding:4px 3px;gap:3px;${cellBg}">`;
+
+      if(estado==='?'){
+        html+=`<button class="pts-btn" style="background:var(--surf3);color:var(--txt3);font-size:9px;width:100%" onclick="cyclePTS(${wid},${i},'?')">+ asignar</button>`;
+      } else {
+        const cls={W:'pts-w',D:'pts-d',B:'pts-b',V:'pts-v'}[estado]||'pts-w';
+        const lbl={W:'Trabaja',D:'DESC',B:'Boleta',V:'VAC'}[estado]||'Trabaja';
+        const lock=esDiaGuardado?' 🔒':'';
+        html+=`<button class="pts-btn ${cls}" style="width:100%" onclick="cyclePTS(${wid},${i},'${estado}')">${lbl}${lock}</button>`;
+      }
+
+      if(tipo==='ROT'&&estado==='W'){
+        if(htDisp.length){
+          html+=`<select class="pts-ht" style="width:100%;font-size:10px" onchange="setPTSHt(${wid},${i},this.value)">
+            <option value="">☰ sub-horario</option>
+            ${htDisp.map(h=>{
+              const nm=h.nombreHorario.toUpperCase();
+              const ico=nm.includes('MAÑANA')?'☀':nm.includes('TARDE')?'🌤':nm.includes('NOCHE')?'🌙':nm.includes('DIURNO')?'☀':nm.includes('NOCTURNO')?'🌙':'⏱';
+              return`<option value="${h.id}"${h.id===idHt?' selected':''}>${ico} ${h.nombreHorario}</option>`;
+            }).join('')}
+          </select>`;
+        }else{html+=`<div style="font-size:9px;color:var(--red);text-align:center">sin sub-horarios</div>`;}
+      }
+      if(tipo==='FIJ'&&estado==='W'){
+        const htFij=horariosTurno.find(h=>h.id===idHt);
+        const nombre=htNombre||htFij?.nombreHorario||(idHt?'id_ht='+idHt:'—');
+        html+=`<div style="font-size:9px;color:var(--txt3);font-family:var(--mono);text-align:center">${nombre}</div>`;
+      }
+      html+=`</div>`;
+    });
+  };
+
+  if(grupoProg.length){
+    html+=`<div class="pts-section-hdr">✅ Ya programados <span>${grupoProg.length}</span></div>`;
+    grupoProg.forEach(item=>renderFila(item,true));
+  }
+  if(grupoPend.length){
+    html+=`<div class="pts-section-hdr">📋 Por programar <span>${grupoPend.length}</span></div>`;
+    grupoPend.forEach(item=>renderFila(item,false));
+  }
+  grid.innerHTML=html;
+}
+
+
+function cyclePTS(wid,di,current){
+  const w=allTrabajadores.find(x=>x.id===wid);
+  // '?' (sin asignar) → siempre va a 'W' primero
+  const cycleRot={W:'D',D:'B',B:'V',V:'W','?':'W'};
+  const cycleFij={W:'D',D:'V',V:'W','?':'W'};
+  const cycle=w?.tipo==='FIJ'?cycleFij:cycleRot;
+  const next=cycle[current]||'W';
+  const ptsKey=`${wid}_${di}_${weekOffset}`;
+  ptsOverrides[ptsKey]={...ptsOverrides[ptsKey],estado:next};
+  // Re-render sin recargar API — reusar último rawItems guardado
+  renderPTS(lastPTSItems);
+}
+function setPTSHt(wid,di,htId){
+  const ptsKey=`${wid}_${di}_${weekOffset}`;
+  ptsOverrides[ptsKey]={...ptsOverrides[ptsKey],ht:parseInt(htId)};
+  // No re-render completo para no perder el foco del select
+}
+
+async function savePTS(){
+  const btn=document.getElementById('btn-save-pts');
+  btn.disabled=true;btn.textContent='Guardando...';
+  const dates=getWeekDates(weekOffset);
+  const trabajadoresPagina=lastPTSItems||[];
+
+  const programaciones=[];
+  const sinHorario=[];
+
+  trabajadoresPagina.forEach(item=>{
+    const wid=item.trabajadorId;
+    const w=allTrabajadores.find(x=>x.id===wid);
+
+    dates.forEach((d,i)=>{
+      const dateISO=fmtISO(d);
+      const ptsKey=`${wid}_${i}_${weekOffset}`;
+      const ov=ptsOverrides[ptsKey];
+      const rec=ptsSemana[wid]?.[dateISO];
+
+      // Estado final de la celda
+      let estadoFinal='?';
+      if(ov?.estado){
+        estadoFinal=ov.estado;
+      } else if(rec?.estado){
+        const e=rec.estado.toLowerCase();
+        if(e==='trabaja'||e==='asignado')estadoFinal='W';
+        else if(e==='descanso')estadoFinal='D';
+        else if(e==='boleta'||e==='dia-boleta')estadoFinal='B';
+        else if(e==='vacaciones')estadoFinal='V';
+        // sin-asignar → '?' → ignorar
+      }
+
+      if(estadoFinal==='?')return; // sin asignar → no enviar
+
+      const idHt=ov?.ht||rec?.horarioTurnoId||w?.idHorarioTurno||null;
+      const esExcepcion=estadoFinal==='D'||estadoFinal==='B'||estadoFinal==='V';
+
+      // Rotativo trabajando sin sub-horario → avisar y saltar
+      if(!idHt&&!esExcepcion){
+        const nombre=item.trabajadorNombre?.split(' ')[0]||'Trab#'+wid;
+        sinHorario.push(`${nombre} - ${['Lu','Ma','Mié','Ju','Vi','Sá','Do'][i]}`);
+        return;
+      }
+
+      programaciones.push({
+        trabajadorId:wid,
+        fecha:dateISO,
+        idHorarioTurno:idHt||null,
+        esDescanso:estadoFinal==='D',
+        esDiaBoleta:estadoFinal==='B',
+        esVacaciones:estadoFinal==='V'
+      });
+    });
+  });
+
+  if(sinHorario.length){
+    toast(`⚠ ${sinHorario.length} día(s) sin sub-horario: ${sinHorario.slice(0,4).join(', ')}${sinHorario.length>4?'…':''}. Elige sub-horario primero.`,'warn');
+    if(!programaciones.length){btn.disabled=false;btn.textContent='💾 Guardar semana';return;}
+  }
+
+  if(!programaciones.length){
+    toast('No hay días asignados para guardar en esta página','warn');
+    btn.disabled=false;btn.textContent='💾 Guardar semana';
+    return;
+  }
+
+  try{
+    const r=await apiFetch('/api/Rrhh/ProgramacionSemanal',{method:'POST',body:JSON.stringify({
+      fechaInicio:fmtISO(dates[0]),
+      fechaFin:fmtISO(dates[6]),
+      programaciones
+    })});
+    if(r.ok){
+      const res=await r.json();
+      toast(`✓ ${res.mensaje||'Guardado'} · ${res.registrosGrabados||programaciones.length} registros`);
+      // Limpiar overrides de todos los trabajadores de la página
+      trabajadoresPagina.forEach(item=>{
+        dates.forEach((_,i)=>delete ptsOverrides[`${item.trabajadorId}_${i}_${weekOffset}`]);
+        delete ptsSemana[item.trabajadorId];
+      });
+      await loadPTS();
+    }else{
+      const e=await r.json();
+      // El backend devuelve { message, horariosDisponibles[] } cuando hay id_ht inválido
+      if(e.horariosDisponibles?.length){
+        const htNames=e.horariosDisponibles.slice(0,5).map(h=>`id=${h.id} ${h.nombreHorario}`).join(', ');
+        toast(`${e.message||'Error'} — disponibles: ${htNames}${e.horariosDisponibles.length>5?'…':''}`, 'err');
+      } else {
+        toast(e.mensaje||e.message||'Error al guardar','err');
+      }
+    }
+  }catch{toast('Error de conexión','err');}
+  btn.disabled=false;btn.textContent='💾 Guardar semana';
+}
+
+function openVacDrawer(){
+  const trabOpts=allTrabajadores.map(w=>`<option value="${w.id}">${w.name} (${w.tipo})</option>`).join('');
+  document.getElementById('vac-body').innerHTML=`
+    <div class="fld"><div class="fld-lbl">Trabajador</div><select class="sel" id="vac-trab">${trabOpts}</select></div>
+    <div class="form-row">
+      <div class="fld"><div class="fld-lbl">Fecha inicio</div><input type="date" class="inp" id="vac-inicio"></div>
+      <div class="fld"><div class="fld-lbl">Fecha fin</div><input type="date" class="inp" id="vac-fin"></div>
+    </div>
+    <div class="warn-box">Cada día del rango se marcará con <strong>es_vacaciones=1</strong> en PROGRAMACION_TURNOS_SEMANAL. Funciona igual para FIJOS y ROTATIVOS. El SP cierre escribirá <strong>VACACIONES</strong> en ASISTENCIA_RESUMEN_DIARIO.</div>`;
+  openDrawer('ov-vac','dr-vac');
+}
+async function saveVac(){
+  const trabId=parseInt(document.getElementById('vac-trab')?.value);
+  const inicio=document.getElementById('vac-inicio')?.value;
+  const fin=document.getElementById('vac-fin')?.value;
+  if(!inicio||!fin){toast('Selecciona rango de fechas','err');return;}
+
+  // Construir programaciones para cada día del rango
+  const programaciones=[];
+  const w=allTrabajadores.find(x=>x.id===trabId);
+  const idHtBase=w?.idHorarioTurno||0;
+  const d=new Date(inicio);
+  const dFin=new Date(fin);
+  while(d<=dFin){
+    programaciones.push({
+      trabajadorId:trabId,
+      fecha:fmtISO(d),
+      idHorarioTurno:idHtBase,
+      esDescanso:false,
+      esDiaBoleta:false,
+      esVacaciones:true
+    });
+    d.setDate(d.getDate()+1);
+  }
+
+  try{
+    const r=await apiFetch('/api/Rrhh/ProgramacionSemanal',{method:'POST',body:JSON.stringify({
+      fechaInicio:inicio,
+      fechaFin:fin,
+      programaciones
+    })});
+    if(r.ok||r.status===200){
+      const res=await r.json();
+      toast(`Vacaciones marcadas · ${res.registrosGrabados||programaciones.length} días ✓`);
+      closeVac();loadPTS();
+    }else{const e=await r.json();toast(e.mensaje||e.message||'Error','err');}
+  }catch{toast('Error de conexión','err');}
+}
+function closeVac(){closeDrawer('ov-vac','dr-vac');}
+
+// ══ COBERTURAS ════════════════════════════════════════════
+async function loadCoberturas(){
+  document.getElementById('cob-list').innerHTML='<div style="padding:20px;text-align:center"><div class="spin"></div></div>';
+  try{const r=await apiFetch('/api/Coberturas');if(r.ok)allCoberturas=await r.json();else allCoberturas=[];}
+  catch{allCoberturas=[];}
+  renderCobs();updateCobBadge();
+}
+function setCobFil(f,el){cobFil=f;document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));el.classList.add('active');renderCobs();}
+function renderCobs(){
+  const list=document.getElementById('cob-list');
+  const fil=cobFil==='todos'?allCoberturas:allCoberturas.filter(c=>c.estado===cobFil);
+  if(!fil.length){list.innerHTML='<div style="padding:40px;text-align:center;color:var(--txt3)">No hay registros</div>';return;}
+  const isAdmin=['ADMIN','SUPERADMIN','SUPERVISOR'].includes((currentUser?.role||'').toUpperCase());
+  list.innerHTML=fil.map(c=>{
+    const wCubre=allTrabajadores.find(x=>x.id===(c.idTrabajadorCubre));
+    const wAusente=allTrabajadores.find(x=>x.id===(c.idTrabajadorAusente));
+    const nmCubre=wCubre?.name?.split(' ').slice(0,2).join(' ')||`#${c.idTrabajadorCubre}`;
+    const nmAusente=wAusente?.name?.split(' ').slice(0,2).join(' ')||`#${c.idTrabajadorAusente}`;
+    const htNm=horariosTurno.find(h=>h.id===c.idHorarioTurnoOriginal)?.nombreHorario||`id_ht=${c.idHorarioTurnoOriginal}`;
+    const estMap={PENDIENTE:'ec-warn',APROBADO:'ec-ok',RECHAZADO:'ec-err',EJECUTADO:'ec-info',DEVUELTO:'ec-tea'};
+    const estCls=estMap[c.estado]||'ec-gray';
+    const devH=c.fechaSwapDevolucion?` · Dev: ${c.fechaSwapDevolucion}`:'';
+    const accH=c.estado==='PENDIENTE'&&isAdmin?`<div style="display:flex;gap:5px">
+      <button class="btn btn-success btn-sm" onclick="aprobarCob(${c.idCobertura||c.id})">Aprobar</button>
+      <button class="btn btn-danger btn-sm" onclick="rechazarCob(${c.idCobertura||c.id})">Rechazar</button></div>`
+      :`<span class="ec ${estCls}">${c.estado||'—'}</span>`;
+    return`<div class="cob-item">
+      <div class="cob-badge cb-${c.tipoCobertura||c.tipo||'COBERTURA'}">${c.tipoCobertura||c.tipo||'—'}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${nmCubre} → ${nmAusente}</div>
+        <div style="font-size:11px;color:var(--txt2);font-family:var(--mono);margin-top:2px">${c.fecha||'—'} · ${htNm}${devH}</div>
+      </div>
+      ${accH}
+    </div>`;
+  }).join('');
+}
+async function aprobarCob(id){const r=await apiFetch(`/api/Coberturas/${id}/aprobar`,{method:'PUT'});if(r.ok||r.status===204){toast('Aprobada ✓');loadCoberturas();}else toast('Error','err');}
+async function rechazarCob(id){const r=await apiFetch(`/api/Coberturas/${id}/rechazar`,{method:'PUT'});if(r.ok||r.status===204){toast('Rechazada');loadCoberturas();}else toast('Error','err');}
+function updateCobBadge(){const p=allCoberturas.filter(c=>c.estado==='PENDIENTE').length;const nb=document.getElementById('nb-cob');if(nb){nb.classList.toggle('hidden',p===0);nb.textContent=p;}}
+
+function openCobDrawer(opts={}){
+  // opts puede venir vacío (desde botón Coberturas) o pre-cargado (desde Horario Semanal)
+  // opts = { widAusente, fecha, idHt, htNombre }
+  cobTipo='COBERTURA';
+  const trabOpts=allTrabajadores.map(w=>`<option value="${w.id}"${w.id===opts.widAusente?' selected':''}>${w.name} (${w.tipo})</option>`).join('');
+  const htOpts=horariosTurno.map(h=>`<option value="${h.id}"${h.id===opts.idHt?' selected':''}>${h.nombreHorario}</option>`).join('');
+  const fechaVal=opts.fecha||new Date().toISOString().split('T')[0];
+
+  document.getElementById('cob-body').innerHTML=`
+    <div class="fld"><div class="fld-lbl">Tipo de operación</div>
+      <div class="tipo-sel">
+        <div class="tipo-opt sel" onclick="setCobTipo('COBERTURA',this)"><div style="font-size:18px">🛡</div><div style="font-size:10px;font-weight:700;font-family:var(--mono)">COBERTURA</div><div style="font-size:9px;color:var(--txt2)">A cubre a B ausente</div></div>
+        <div class="tipo-opt" onclick="setCobTipo('CAMBIO',this)"><div style="font-size:18px">🔄</div><div style="font-size:10px;font-weight:700;font-family:var(--mono)">CAMBIO/SWAP</div><div style="font-size:9px;color:var(--txt2)">Intercambio de turno</div></div>
+        <div class="tipo-opt" onclick="setCobTipo('ANTICIPO',this)"><div style="font-size:18px">⏩</div><div style="font-size:10px;font-weight:700;font-family:var(--mono)">ANTICIPO</div><div style="font-size:9px;color:var(--txt2)">Cubre + descansa</div></div>
+      </div>
+    </div>
+
+    <!-- MOTIVO DE FALTA — solo visible en COBERTURA -->
+    <div class="fld" id="fld-motivo">
+      <div class="fld-lbl">Motivo de falta del ausente</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px" id="motivo-opts">
+        <div class="tipo-opt sel" onclick="setMotivoFalta('FSGH',this)" style="padding:8px 10px">
+          <div style="font-size:13px">🚫</div>
+          <div style="font-size:10px;font-weight:700;font-family:var(--mono)">FSGH</div>
+          <div style="font-size:9px;color:var(--txt2)">Falta sin goce</div>
+        </div>
+        <div class="tipo-opt" onclick="setMotivoFalta('FCGH',this)" style="padding:8px 10px">
+          <div style="font-size:13px">✅</div>
+          <div style="font-size:10px;font-weight:700;font-family:var(--mono)">FCGH</div>
+          <div style="font-size:9px;color:var(--txt2)">Falta con goce</div>
+        </div>
+        <div class="tipo-opt" onclick="setMotivoFalta('PERMISO',this)" style="padding:8px 10px">
+          <div style="font-size:13px">📋</div>
+          <div style="font-size:10px;font-weight:700;font-family:var(--mono)">PERMISO</div>
+          <div style="font-size:9px;color:var(--txt2)">Permiso autorizado</div>
+        </div>
+        <div class="tipo-opt" onclick="setMotivoFalta('OTRO',this)" style="padding:8px 10px">
+          <div style="font-size:13px">📝</div>
+          <div style="font-size:10px;font-weight:700;font-family:var(--mono)">OTRO</div>
+          <div style="font-size:9px;color:var(--txt2)">Otro motivo</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="fld"><div class="fld-lbl">Fecha</div><input type="date" class="inp" id="cf-fecha" value="${fechaVal}"></div>
+      <div class="fld"><div class="fld-lbl">Sub-horario del ausente</div><select class="sel" id="cf-ht"><option value="">— sin sub-horario —</option>${htOpts}</select></div>
+    </div>
+    <div class="form-row">
+      <div class="fld"><div class="fld-lbl" id="lbl-ausente">AUSENTE</div><select class="sel" id="cf-ausente">${trabOpts}</select></div>
+      <div class="fld" id="fld-cubre"><div class="fld-lbl" id="lbl-cubre">Quien CUBRE <span style="font-size:9px;color:var(--txt3)">(opcional)</span></div><select class="sel" id="cf-cubre"><option value="">— sin cobertura —</option>${trabOpts}</select></div>
+    </div>
+    <div class="fld hidden" id="fld-dev"><div class="fld-lbl">Fecha devolución (ANTICIPO)</div><input type="date" class="inp" id="cf-dev"></div>
+    <div class="info-box" id="cob-info">La <strong>COBERTURA</strong>: el ausente queda como FALTA_CUBIERTA (o FSGH/FCGH según motivo), quien cubre como COBERTURA_EXTRA. El SP cierre lo procesa automáticamente.</div>
+    ${opts.widAusente?`<div class="warn-box">Pre-cargado desde Horario Semanal · ${opts.htNombre||''} · ${fechaVal}</div>`:''}`;
+
+  // Guardar motivo actual
+  window._cobMotivo='FSGH';
+  openDrawer('ov-cob','dr-cob');
+}
+
+function setMotivoFalta(motivo,el){
+  window._cobMotivo=motivo;
+  document.querySelectorAll('#motivo-opts .tipo-opt').forEach(x=>x.classList.remove('sel'));
+  el.classList.add('sel');
+}
+
+// Abre el drawer de cobertura pre-cargado desde una celda del Horario Semanal
+function openCobDesdeHorario(wid, fecha, idHt, htNombre){
+  openCobDrawer({widAusente:wid, fecha, idHt, htNombre});
+}
+
+function setCobTipo(t,el){
+  cobTipo=t;
+  document.querySelectorAll('.tipo-opt:not(#motivo-opts .tipo-opt)').forEach(x=>x.classList.remove('sel'));
+  el.classList.add('sel');
+  // Motivo de falta solo aplica a COBERTURA
+  document.getElementById('fld-motivo')?.classList.toggle('hidden',t!=='COBERTURA');
+  document.getElementById('fld-cubre')?.classList.toggle('hidden',t==='COBERTURA'?false:false);
+  document.getElementById('lbl-cubre').textContent=t==='CAMBIO'?'Trabajador A (va al turno de B)':'Quien CUBRE';
+  document.getElementById('lbl-ausente').textContent=t==='CAMBIO'?'Trabajador B (va al turno de A)':'AUSENTE';
+  document.getElementById('fld-dev').classList.toggle('hidden',t!=='ANTICIPO');
+  const msgs={
+    COBERTURA:'La <strong>COBERTURA</strong>: ausente → FALTA_CUBIERTA (motivo: FSGH/FCGH/PERMISO), quien cubre → COBERTURA_EXTRA. El SP cierre descuenta sueldo según FSGH.',
+    CAMBIO:'El <strong>CAMBIO/SWAP</strong>: SP crea 2 registros recíprocos. El SP cierre usa <strong>AST.id_horario_turno</strong> directamente para el recíproco.',
+    ANTICIPO:'El <strong>ANTICIPO</strong>: hoy cubre (COBERTURA_EXTRA), el día de devolución el SP escribe DESCANSO_COMPENSATORIO automáticamente.'
+  };
+  document.getElementById('cob-info').innerHTML=msgs[t];
+}
+
+async function saveCob(){
+  const fecha=document.getElementById('cf-fecha')?.value;
+  const cubre=parseInt(document.getElementById('cf-cubre')?.value)||null;
+  const ausente=parseInt(document.getElementById('cf-ausente')?.value);
+  const ht=parseInt(document.getElementById('cf-ht')?.value)||null;
+  const dev=document.getElementById('cf-dev')?.value||null;
+  const motivo=window._cobMotivo||'FSGH';
+  if(!fecha){toast('Selecciona fecha','err');return;}
+  if(cubre&&cubre===ausente){toast('El que cubre no puede ser el mismo ausente','err');return;}
+  if(cobTipo==='ANTICIPO'&&!dev){toast('ANTICIPO requiere fecha de devolución','err');return;}
+  try{
+    const r=await apiFetch('/api/Coberturas',{method:'POST',body:JSON.stringify({
+      fecha:fecha+'T00:00:00',
+      idTrabajadorCubre:cubre,
+      idTrabajadorAusente:ausente,
+      idHorarioTurnoOriginal:ht,
+      tipoCobertura:cobTipo,
+      motivoFalta:cobTipo==='COBERTURA'?motivo:null,
+      fechaSwapDevolucion:dev?dev+'T00:00:00':null
+    })});
+    if(r.ok||r.status===201){toast(`${cobTipo} registrada ✓`);closeCob();loadCoberturas();}
+    else{const e=await r.json();toast(e.message||'Error','err');}
+  }catch{toast('Error de conexión','err');}
+}
+function closeCob(){closeDrawer('ov-cob','dr-cob');}
+
+// ══ TRABAJADORES (wizard flujo completo) ══════════════════
+function setTrabFil(f){trabFil=f;['ALL','ROT','FIJ'].forEach(x=>document.getElementById('tw-f-'+x)?.classList.toggle('on',x===f));loadTrabajadores();}
+
+async function loadTrabajadores(){
+  const q=document.getElementById('srch-trab')?.value||'';
+  const sf=document.getElementById('sede-trab-fil')?.value||'';
+  const tbody=document.getElementById('trab-tbody');
+  tbody.innerHTML='<tr class="load-row"><td colspan="7"><div class="spin"></div></td></tr>';
+  try{
+    // Cargar todas las páginas
+    let all=[], page=1, total=999;
+    while(all.length<total){
+      let url=`/api/Rrhh/Trabajadores?pageNumber=${page}&pageSize=100`;
+      if(q)url+=`&search=${encodeURIComponent(q)}`;
+      const r=await apiFetch(url);
+      if(!r.ok)break;
+      const d=await r.json();
+      const items=d.items||d||[];
+      total=d.totalCount||d.total||items.length;
+      all=[...all,...items];
+      if(items.length<100||all.length>=total)break;
+      page++;
+    }
+    let items=all.map(mapTrab);
+    if(sf)items=items.filter(w=>String(w.sucursalId)===sf);
+    if(trabFil!=='ALL')items=items.filter(w=>w.tipo===trabFil);
+    // Ordenar por sede → apellido
+    items.sort((a,b)=>{const sa=sedes.find(s=>s.id===a.sucursalId)?.nombreSucursal||'';const sb=sedes.find(s=>s.id===b.sucursalId)?.nombreSucursal||'';return sa.localeCompare(sb)||a.name.localeCompare(b.name);});
+    allTrabajadores=items;
+    const isAdmin=['ADMIN','SUPERADMIN','SUPERVISOR'].includes((currentUser?.role||'').toUpperCase());
+    // Group by sede
+    const bySede={};
+    items.forEach(w=>{const sede=sedes.find(s=>s.id===w.sucursalId)?.nombreSucursal||'Sin sede';if(!bySede[sede])bySede[sede]=[];bySede[sede].push(w);});
+    let html='';
+    Object.entries(bySede).forEach(([sedeName,workers])=>{
+      html+=`<tr><td colspan="7" style="background:var(--surf2);font-size:10px;font-family:var(--mono);color:var(--txt2);padding:5px 13px;letter-spacing:.08em;font-weight:600;border-bottom:1px solid var(--brd)">📍 ${sedeName} · ${workers.length} personas</td></tr>`;
+      html+=workers.map(w=>{
+        const htName=getHTName(w.idHorarioTurno);
+        const activo=w.idEstado===10;
+        return`<tr>
+          <td style="font-weight:600">${w.name}</td>
+          <td style="font-family:var(--mono);font-size:11px;color:var(--txt2)">${w.dni}</td>
+          <td><span class="tipo-tag tipo-${w.tipo}">${w.tipo}</span></td>
+          <td style="font-family:var(--mono);font-size:11px"><span style="color:var(--acc)">id_ht=${w.idHorarioTurno||'?'}</span> · ${htName}</td>
+          <td><span class="w-sede">${sedes.find(s=>s.id===w.sucursalId)?.nombreSucursal||'—'}</span></td>
+          <td><span class="ec ${activo?'ec-ok':'ec-err'}">${activo?'ACTIVO':'CESADO'}</span></td>
+          <td style="display:flex;gap:4px">${isAdmin?`<button class="btn btn-sm" onclick="openWorkerWizard(${w.id})">Editar</button><button class="btn btn-sm ${activo?'btn-danger':''}" onclick="darDeBaja(${w.id})">${activo?'Dar baja':'Reactivar'}</button>`:''}</td>
+        </tr>`;
+      }).join('');
+    });
+    tbody.innerHTML=html||'<tr class="load-row"><td colspan="7">Sin resultados</td></tr>';
+    populateSedeFilters();
+  }catch{tbody.innerHTML='<tr class="load-row"><td colspan="7">Error de conexión</td></tr>';}
+}
+
+// ══ WIZARD TRABAJADOR (3 pasos: Persona → Trabajador → Turno) ══
+async function openWorkerWizard(wid){
+  wizardStep=1;
+  wizardData={wid,isNew:!wid};
+  if(wid){
+    wizardData.w=allTrabajadores.find(x=>x.id===wid);
+    // FIX 1: Cargar turno vigente desde GET /api/trabajadores/{id}/turno-vigente
+    try{
+      const r=await apiFetch(`/api/trabajadores/${wid}/turno-vigente`);
+      if(r.ok){
+        const tv=await r.json();
+        // Schema confirmado: id, trabajadorId, turnoId, horarioTurnoId, esVigente,
+        //                    fechaInicioVigencia, fechaFinVigencia, tipoTurno(string)
+        wizardData.idAsignacion     = tv.id;
+        wizardData.idTurno          = tv.turnoId;
+        wizardData.idHt             = tv.horarioTurnoId;
+        wizardData.vini             = tv.fechaInicioVigencia?.split('T')[0];
+        wizardData.fechaFin         = tv.fechaFinVigencia?.split('T')[0]||null;
+        wizardData.turnoNombre      = tv.turnoNombre;
+        wizardData.horarioNombre    = tv.horarioTurnoNombre;
+      }
+    }catch{}
+  }
+  document.getElementById('dw-title').textContent=wid?'Editar trabajador':'Nuevo trabajador';
+  document.getElementById('dw-sub').textContent='Paso 1 de 3: Datos personales';
+  renderWizardStep();
+  openDrawer('ov-worker','dr-worker');
+}
+
+function renderWizardStep(){
+  const w=wizardData.w;
+  const isNew=wizardData.isNew;
+
+  // Steps header
+  const steps=[{n:1,lbl:'Persona'},{n:2,lbl:'Trabajador'},{n:3,lbl:'Turno'}];
+  let hdr=`<div class="wizard-steps">${steps.map(s=>`<div class="wz-step${wizardStep===s.n?' active':wizardStep>s.n?' done':''}" onclick="${wizardStep>=s.n?`goWizardStep(${s.n})`:''}">${s.n}. ${s.lbl}</div>`).join('')}</div>`;
+
+  let body='';
+
+  if(wizardStep===1){
+    document.getElementById('dw-sub').textContent='Paso 1 de 3: Datos personales (PERSONAS)';
+    body=`${hdr}
+      <div class="wz-panel active">
+        <div class="sec-lbl">Datos de la persona</div>
+        <div class="fld"><div class="fld-lbl">Apellidos y nombres</div><input class="inp" id="wf-apellidos" value="${w?.name||wizardData.apellidos||''}" placeholder="GARCIA LOPEZ, JUAN"></div>
+        <div class="form-row">
+          <div class="fld"><div class="fld-lbl">DNI</div><input class="inp" id="wf-dni" value="${w?.dni||wizardData.dni||''}" placeholder="12345678" maxlength="8"></div>
+          <div class="fld"><div class="fld-lbl">Teléfono personal</div><input class="inp" id="wf-tel" value="${wizardData.tel||''}" placeholder="987654321"></div>
+        </div>
+        <div class="fld"><div class="fld-lbl">Correo personal</div><input class="inp" id="wf-correo" value="${wizardData.correo||''}" placeholder="juan@gmail.com"></div>
+        <div class="info-box">Estos datos se guardan en la tabla <strong>PERSONAS</strong>. El DNI debe ser único en el sistema.</div>
+      </div>`;
+  }
+  else if(wizardStep===2){
+    document.getElementById('dw-sub').textContent='Paso 2 de 3: Datos laborales (TRABAJADORES)';
+    const sedeOpts=sedes.map(s=>`<option value="${s.id}"${w&&w.sucursalId===s.id?' selected':wizardData.sucursalId==s.id?' selected':''}>${s.nombreSucursal}</option>`).join('');
+    const jefeOpts=allTrabajadores.filter(x=>x.id!==w?.id).map(x=>`<option value="${x.id}">${x.name}</option>`).join('');
+    body=`${hdr}
+      <div class="wz-panel active">
+        <div class="sec-lbl">Datos laborales</div>
+        <div class="fld"><div class="fld-lbl">Cargo / Rol</div><input class="inp" id="wf-cargo" value="${w?.rol||wizardData.cargo||''}" placeholder="Ej: Recaudador, Jefe de pista"></div>
+        <div class="fld"><div class="fld-lbl">Área / Departamento</div><input class="inp" id="wf-area" value="${w?.area||wizardData.area||''}" placeholder="Ej: EDS Central, RRHH"></div>
+        <div class="form-row">
+          <div class="fld"><div class="fld-lbl">Sede principal</div><select class="sel" id="wf-sede">${sedeOpts}</select></div>
+          <div class="fld"><div class="fld-lbl">Fecha ingreso</div><input type="date" class="inp" id="wf-finicio" value="${wizardData.fechaIngreso||''}"></div>
+        </div>
+        <div class="fld"><div class="fld-lbl">Jefe inmediato (opcional)</div><select class="sel" id="wf-jefe"><option value="">Sin jefe asignado</option>${jefeOpts}</select></div>
+        <div class="form-row">
+          <div><label class="chk-row"><input type="checkbox" id="wf-marcaje" ${wizardData.marcajeZona!==false?'checked':''}><span>Marcaje en zona GPS</span></label></div>
+          <div><label class="chk-row"><input type="checkbox" id="wf-foto" ${wizardData.tomarFoto?'checked':''}><span>Tomar foto al marcar</span></label></div>
+        </div>
+        <div class="info-box">Estos datos van a la tabla <strong>TRABAJADORES</strong>. La sede determina las coordenadas GPS para validar la ubicación al marcar.</div>
+      </div>`;
+  }
+  else if(wizardStep===3){
+    document.getElementById('dw-sub').textContent='Paso 3 de 3: Asignar turno';
+
+    const turnoActualId = wizardData.idTurno || null;
+    const htActualId    = wizardData.idHt    || null;
+    const tieneAsig     = !!wizardData.idAsignacion;
+
+    const turnoOpts=allTurnos.map(t=>{
+      const tipoT=window.turnoTipo?.[t.id]||'FIJ';
+      const ico={ROT:'🔄',NF:'🚫',VAR:'📊',FIJ:'📋'}[tipoT]||'📋';
+      return`<option value="${t.id}"${t.id===turnoActualId?' selected':''}>${ico} ${t.nombreCodigo||t.nombre_codigo}</option>`;
+    }).join('');
+
+    // Sub-horarios del turno seleccionado, con íconos por nombre
+    const htFiltrados = turnoActualId
+      ? (window.htPorTurno?.[turnoActualId]||horariosTurno.filter(h=>h.turnoId===turnoActualId))
+      : horariosTurno;
+    const htOpts=htFiltrados.map(h=>{
+      const nm=(h.nombreHorario||'').toUpperCase();
+      const ico=nm.includes('MAÑANA')?'☀':nm.includes('TARDE')?'🌤':nm.includes('NOCHE')?'🌙':nm.includes('DIURNO')?'☀':nm.includes('NOCTURNO')?'🌙':nm.includes('SIN MARC')?'🚫':nm.includes('VARIABLE')?'📊':'📋';
+      return`<option value="${h.id}"${h.id===htActualId?' selected':''}>${ico} ${h.nombreHorario}</option>`;
+    }).join('');
+
+    const motivoDefault=wizardData.isNew?'ASIGNACION_INICIAL':tieneAsig?'CAMBIO_PERMANENTE':'ASIGNACION_INICIAL';
+    const motivoOpts=['ASIGNACION_INICIAL','CAMBIO_PERMANENTE','CAMBIO_TEMPORAL','SOLICITUD_TRABAJADOR','NECESIDAD_OPERATIVA']
+      .map(m=>`<option value="${m}"${m===motivoDefault?' selected':''}>${m}</option>`).join('');
+
+    // Mostrar resumen del turno vigente si existe
+    const resumenVigente = tieneAsig
+      ? `<div class="info-box" style="border-color:var(--amb)">
+          <strong>Asignación vigente #${wizardData.idAsignacion}</strong><br>
+          Turno: ${wizardData.turnoNombre||'id='+turnoActualId} · Sub-horario base: ${wizardData.horarioNombre||'id='+htActualId}<br>
+          Vigente desde: ${wizardData.vini||'—'}
+          <span style="color:var(--amb);font-family:var(--mono);font-size:9px;margin-left:8px">→ PUT /api/Rrhh/AsignacionTurno/${wizardData.idAsignacion}</span>
+        </div>`
+      : `<div class="info-box" style="border-color:var(--grn)">Sin asignación previa — se creará nueva
+          <span style="color:var(--grn);font-family:var(--mono);font-size:9px;margin-left:8px">→ POST /api/trabajadores/{id}/asignar-turno</span>
+        </div>`;
+
+    body=`${hdr}
+      <div class="wz-panel active">
+        <div class="sec-lbl">Asignación de turno</div>
+        ${resumenVigente}
+        <div class="fld"><div class="fld-lbl">Turno</div>
+          <select class="sel" id="wf-turno" onchange="onTurnoChange(this)">
+            <option value="">— selecciona turno —</option>${turnoOpts}
+          </select>
+        </div>
+        <div class="fld"><div class="fld-lbl">Sub-horario base
+          <span style="font-size:9px;color:var(--txt3);font-weight:400;margin-left:4px">(para FIJOS: su único horario · para ROTATIVOS: horario inicial, la PTS lo cambia día a día)</span>
+        </div>
+          <select class="sel" id="wf-ht">
+            <option value="">— elige turno primero —</option>${htOpts}
+          </select>
+        </div>
+        <div class="form-row">
+          <div class="fld"><div class="fld-lbl">Fecha inicio vigencia</div>
+            <input type="date" class="inp" id="wf-vini" value="${wizardData.vini||new Date().toISOString().split('T')[0]}">
+          </div>
+          <div class="fld"><div class="fld-lbl">Fecha fin vigencia (opcional)</div>
+            <input type="date" class="inp" id="wf-vfin" value="${wizardData.fechaFin||''}">
+          </div>
+        </div>
+        <div class="fld"><div class="fld-lbl">Motivo</div>
+          <select class="sel" id="wf-motivo">${motivoOpts}</select>
+        </div>
+      </div>`;
+  }
+
+  document.getElementById('dw-body').innerHTML=body;
+
+  // Footer buttons
+  const footer=document.getElementById('dw-footer');
+  let footBtns='';
+  if(wizardStep>1)footBtns+=`<button class="btn btn-sm" onclick="goWizardStep(${wizardStep-1})">← Anterior</button>`;
+  footBtns+=`<div style="flex:1"></div>`;
+  if(!isNew)footBtns+=`<button class="btn btn-sm" onclick="closeWorker()">Cancelar</button>`;
+  if(wizardStep<3)footBtns+=`<button class="btn btn-primary btn-sm" onclick="wizardNext()">Siguiente →</button>`;
+  else footBtns+=`<button class="btn btn-primary btn-sm" onclick="saveWorker()">Guardar trabajador</button>`;
+  footer.innerHTML=footBtns;
+}
+
+function goWizardStep(n){wizardStep=n;renderWizardStep();}
+
+function wizardNext(){
+  // Save current step data
+  if(wizardStep===1){
+    wizardData.apellidos=document.getElementById('wf-apellidos')?.value.trim();
+    wizardData.dni=document.getElementById('wf-dni')?.value.trim();
+    wizardData.tel=document.getElementById('wf-tel')?.value.trim();
+    wizardData.correo=document.getElementById('wf-correo')?.value.trim();
+    if(!wizardData.apellidos||!wizardData.dni){toast('Apellidos y DNI son obligatorios','err');return;}
+    if(wizardData.dni.length!==8){toast('El DNI debe tener 8 dígitos','err');return;}
+  }
+  else if(wizardStep===2){
+    wizardData.cargo=document.getElementById('wf-cargo')?.value.trim();
+    wizardData.area=document.getElementById('wf-area')?.value.trim();
+    wizardData.sucursalId=parseInt(document.getElementById('wf-sede')?.value);
+    wizardData.fechaIngreso=document.getElementById('wf-finicio')?.value;
+    wizardData.jefeId=parseInt(document.getElementById('wf-jefe')?.value)||null;
+    wizardData.marcajeZona=document.getElementById('wf-marcaje')?.checked;
+    wizardData.tomarFoto=document.getElementById('wf-foto')?.checked;
+    if(!wizardData.sucursalId){toast('Selecciona una sede','err');return;}
+  }
+  wizardStep++;
+  renderWizardStep();
+}
+
+function onTurnoChange(sel){
+  const turno=allTurnos.find(t=>t.id===parseInt(sel.value));
+  if(!turno)return;
+  wizardData.idTurno=turno.id;
+  // Filtrar id_ht al turno seleccionado y recargar selector
+  const htSel=document.getElementById('wf-ht');
+  const htFilt=horariosTurno.filter(h=>h.turnoId===turno.id);
+  // Mantener selección previa si pertenece a este turno
+  const prevHt=wizardData.idHt;
+  htSel.innerHTML=htFilt.length
+    ? htFilt.map(h=>`<option value="${h.id}"${h.id===prevHt?' selected':''}>${h.id} – ${h.nombreHorario}</option>`).join('')
+    : '<option value="">— sin sub-horarios —</option>';
+  // Si el previo no pertenece al nuevo turno, limpiar
+  if(!htFilt.find(h=>h.id===prevHt))wizardData.idHt=htFilt[0]?.id||null;
+}
+
+async function saveWorker(){
+  // Recoger datos del paso 3
+  wizardData.idTurno = parseInt(document.getElementById('wf-turno')?.value);
+  wizardData.idHt    = parseInt(document.getElementById('wf-ht')?.value);
+  wizardData.vini    = document.getElementById('wf-vini')?.value;
+  wizardData.vfin    = document.getElementById('wf-vfin')?.value||null;
+  wizardData.motivo  = document.getElementById('wf-motivo')?.value;
+
+  const{wid,isNew,apellidos,dni,tel,correo,cargo,area,sucursalId,
+        fechaIngreso,jefeId,marcajeZona,tomarFoto,
+        idTurno,idHt,vini,vfin,motivo,idAsignacion}=wizardData;
+
+  if(isNew){
+    // ── CREAR trabajador ──────────────────────────────────
+    const body={
+      apellidosNombres:apellidos,dni,telefonoPersonal:tel,correoPersonal:correo,
+      idSucursal:sucursalId,cargo,areaDepartamento:area,
+      fechaIngreso:fechaIngreso||null,idJefeInmediato:jefeId,
+      marcajeEnZona:marcajeZona,tomarFoto,idEstado:10
+    };
+    try{
+      const r=await apiFetch('/api/FichaTrabajador',{method:'POST',body:JSON.stringify(body)});
+      if(!r.ok){const e=await r.json();toast(e.message||'Error al crear','err');return;}
+      const created=await r.json();
+      // POST nueva asignación
+      if(idTurno&&idHt){
+        await apiFetch(`/api/trabajadores/${created.idTrabajador}/asignar-turno`,{
+          method:'POST',
+          body:JSON.stringify({turnoId:idTurno,horarioTurnoId:idHt,
+            fechaInicioVigencia:vini,fechaFinVigencia:vfin||null,motivoCambio:motivo})
+        });
+      }
+      toast('Trabajador creado y turno asignado ✓');
+      closeWorker();loadTrabajadores();
+    }catch{toast('Error de conexión','err');}
+
+  } else {
+    // ── EDITAR trabajador ─────────────────────────────────
+    const body={apellidosNombres:apellidos,dni,idSucursal:sucursalId,cargo,areaDepartamento:area};
+    try{
+      const r=await apiFetch(`/api/FichaTrabajador/${wid}`,{method:'PUT',body:JSON.stringify(body)});
+      if(!r.ok){const e=await r.json();toast(e.message||'Error al actualizar','err');return;}
+
+      if(idTurno&&idHt){
+        if(idAsignacion){
+          // FIX 2: PUT para actualizar asignación existente
+          await apiFetch(`/api/Rrhh/AsignacionTurno/${idAsignacion}`,{
+            method:'PUT',
+            body:JSON.stringify({
+              idAsignacion,idTrabajador:wid,
+              turnoId:idTurno,horarioTurnoId:idHt,
+              fechaInicioVigencia:vini,fechaFinVigencia:vfin||null,
+              motivoCambio:motivo||'CAMBIO_PERMANENTE'
+            })
+          });
+        } else {
+          // POST si no tenía asignación previa
+          await apiFetch(`/api/trabajadores/${wid}/asignar-turno`,{
+            method:'POST',
+            body:JSON.stringify({turnoId:idTurno,horarioTurnoId:idHt,
+              fechaInicioVigencia:vini,fechaFinVigencia:vfin||null,
+              motivoCambio:motivo||'ASIGNACION_INICIAL'})
+          });
+        }
+      }
+      toast('Trabajador actualizado ✓');closeWorker();loadTrabajadores();
+    }catch{toast('Error de conexión','err');}
+  }
+}
+function closeWorker(){closeDrawer('ov-worker','dr-worker');wizardData={};}
+
+// ══ BAJA / REACTIVAR TRABAJADOR ═══════════════════════════
+async function darDeBaja(wid){
+  const w=allTrabajadores.find(x=>x.id===wid);
+  if(!w)return;
+  const esCesado=w.idEstado===11;
+  const msg=esCesado?`¿Reactivar a ${w.name}?`:`¿Dar de baja a ${w.name}? Se marcará como CESADO (id_estado=11).`;
+  if(!confirm(msg))return;
+  try{
+    const r=await apiFetch(`/api/Rrhh/Trabajadores/${wid}`,{method:'DELETE'});
+    if(r.ok||r.status===204){toast(esCesado?'Trabajador reactivado ✓':'Trabajador cesado ✓');loadTrabajadores();}
+    else{const e=await r.json();toast(e.message||'Error','err');}
+  }catch{toast('Error de conexión','err');}
+}
+
+// ══ RESUMEN ════════════════════════════════════════════════
+function initResumen(){
+  const inp=document.getElementById('res-fecha');
+  if(!inp.value)inp.value=new Date().toISOString().split('T')[0];
+  populateSedeFilters();loadResumen();
+}
+async function loadResumen(){
+  const fecha=document.getElementById('res-fecha')?.value;if(!fecha)return;
+  const tbody=document.getElementById('res-tbody');
+  tbody.innerHTML='<tr class="load-row"><td colspan="5"><div class="spin"></div></td></tr>';
+  try{
+    const r=await apiFetch(`/api/Asistencia/resumen?fecha=${fecha}T00:00:00`);
+    if(!r.ok){tbody.innerHTML='<tr class="load-row"><td colspan="5">Sin datos para esta fecha</td></tr>';renderResStats([]);return;}
+    const data=await r.json();
+    renderResStats(data);
+    tbody.innerHTML=data.map(row=>`<tr>
+      <td style="font-weight:600">${row.nombre||row.Nombre||'—'}</td>
+      <td style="font-family:var(--mono);font-size:11px;color:var(--txt2)">${row.dni||row.Dni||'—'}</td>
+      <td><span class="ec ${getEstadoCls(row.estadoAsistencia||row.EstadoAsistencia)}">${row.estadoAsistencia||row.EstadoAsistencia||'—'}</span></td>
+      <td style="font-family:var(--mono);font-size:11px">${(row.minutosTardanza||row.MinutosTardanza||0)>0?(row.minutosTardanza||row.MinutosTardanza)+' min':'—'}</td>
+      <td style="font-family:var(--mono);font-size:11px">${(row.minutosExtra||row.MinutosExtra||0)>0?(row.minutosExtra||row.MinutosExtra)+' min':'—'}</td>
+    </tr>`).join('')||'<tr class="load-row"><td colspan="5">Sin registros</td></tr>';
+  }catch{tbody.innerHTML='<tr class="load-row"><td colspan="5">Error de conexión</td></tr>';}
+}
+function getEstadoCls(e){const m={ASISTENCIA:'ec-ok',TARDANZA:'ec-warn',FALTA:'ec-err',DESCANSO:'ec-warn',VACACIONES:'ec-info',FALTA_CUBIERTA:'ec-err',COBERTURA_EXTRA:'ec-tea',ASISTENCIA_SWAP:'ec-pur',DESCANSO_COMPENSATORIO:'ec-tea',FERIADO:'ec-pur'};return m[e]||'ec-gray';}
+function renderResStats(data){
+  const c={ASISTENCIA:0,TARDANZA:0,FALTA:0,DESCANSO:0};
+  data.forEach(r=>{const e=(r.estadoAsistencia||r.EstadoAsistencia||'').toUpperCase();if(e in c)c[e]++;else if(e.includes('ASISTENCIA'))c.ASISTENCIA++;});
+  document.getElementById('stats-res').innerHTML=[
+    {l:'Asistencias',v:c.ASISTENCIA,c:'color:var(--grn)'},{l:'Tardanzas',v:c.TARDANZA,c:'color:var(--amb)'},
+    {l:'Faltas',v:c.FALTA,c:'color:var(--red)'},{l:'Descansos',v:c.DESCANSO,c:'color:var(--acc)'},
+  ].map(s=>`<div class="stat"><div class="stat-lbl">${s.l}</div><div class="stat-val" style="${s.c}">${s.v}</div></div>`).join('');
+}
+async function ejecutarCierre(){
+  const fecha=document.getElementById('res-fecha')?.value;if(!fecha){toast('Selecciona fecha','err');return;}
+  try{
+    const r=await apiFetch(`/api/Rrhh/CierreDiarioAsistencia/ejecutar/${fecha}`,{method:'POST'});
+    if(r.ok){toast('SP cierre v3 ejecutado ✓');loadResumen();}
+    else{const e=await r.json();toast(e.message||'Error','err');}
+  }catch{toast('Error de conexión','err');}
+}
+
+// ══ NOTIFICACIONES ════════════════════════════════════════
+async function loadNotifCount(){try{const r=await apiFetch('/api/Notificaciones');if(r.ok){const data=await r.json();const c=Array.isArray(data)?data.filter(n=>!n.leida&&!n.Leida).length:0;const nc=document.getElementById('notif-cnt');nc.classList.toggle('hidden',c===0);nc.textContent=c;}}catch{}}
+async function loadNotificaciones(){
+  const tbody=document.getElementById('notif-tbody');
+  tbody.innerHTML='<tr class="load-row"><td colspan="5"><div class="spin"></div></td></tr>';
+  try{
+    const r=await apiFetch('/api/Notificaciones');
+    if(!r.ok){tbody.innerHTML='<tr class="load-row"><td colspan="5">Error</td></tr>';return;}
+    const data=await r.json();
+    tbody.innerHTML=data.map(n=>`<tr style="${!(n.leida||n.Leida)?'font-weight:600':'opacity:.65'}">
+      <td><span class="ec ec-info">${n.tipo||n.Tipo||'—'}</span></td>
+      <td>${n.titulo||n.Titulo||'—'}</td>
+      <td style="color:var(--txt2);font-size:12px">${n.mensaje||n.Mensaje||'—'}</td>
+      <td style="font-family:var(--mono);font-size:11px;color:var(--txt3)">${n.createdAt||n.CreatedAt||'—'}</td>
+      <td>${!(n.leida||n.Leida)?`<button class="btn btn-sm" onclick="marcarLeida(${n.idNotificacion||n.Id})">Leída</button>`:''}</td>
+    </tr>`).join('')||'<tr class="load-row"><td colspan="5">No hay notificaciones</td></tr>';
+  }catch{tbody.innerHTML='<tr class="load-row"><td colspan="5">Error</td></tr>';}
+}
+async function marcarLeida(id){const r=await apiFetch(`/api/Notificaciones/${id}/leer`,{method:'PUT'});if(r.ok||r.status===204){loadNotificaciones();loadNotifCount();}}
+async function marcarTodasLeidas(){const r=await apiFetch('/api/Notificaciones/leer-todas',{method:'PUT'});if(r.ok||r.status===204){toast('Todas leídas ✓');loadNotificaciones();loadNotifCount();}}
+
+// ══ TARDANZAS ═════════════════════════════════════════════
+let allTardanzas=[], tardFil='ALL';
+
+function fmtDateAPI(isoDate){
+  // Convierte YYYY-MM-DD → MM/DD/YYYY (formato que acepta la API)
+  const [y,m,d]=isoDate.split('-');
+  return `${m}/${d}/${y}`;
+}
+
+function initTardanzas(){
+  const now=new Date();
+  const iso=now.toISOString().split('T')[0];
+  document.getElementById('tard-desde').value=iso;
+  document.getElementById('tard-hasta').value=iso;
+  loadTardanzas();
+}
+
+async function loadTardanzas(){
+  const desde=document.getElementById('tard-desde')?.value;
+  const hasta=document.getElementById('tard-hasta')?.value;
+  if(!desde||!hasta){toast('Selecciona rango de fechas','err');return;}
+  const tbody=document.getElementById('tard-tbody');
+  tbody.innerHTML='<tr class="load-row"><td colspan="7"><div class="spin"></div></td></tr>';
+  document.getElementById('stats-tard').innerHTML='';
+  try{
+    const url=`/api/Reporte/tardanzas?fechaInicio=${encodeURIComponent(fmtDateAPI(desde))}&fechaFin=${encodeURIComponent(fmtDateAPI(hasta))}`;
+    const r=await apiFetch(url);
+    if(!r.ok){tbody.innerHTML=`<tr class="load-row"><td colspan="7">Error ${r.status}</td></tr>`;return;}
+    const data=await r.json();
+    allTardanzas=Array.isArray(data)?data:(data.items||[]);
+    // Poblar filtro de áreas
+    const areas=[...new Set(allTardanzas.map(x=>x.area||'Sin área').filter(Boolean))].sort();
+    const areaFil=document.getElementById('tard-area-fil');
+    const curArea=areaFil.value;
+    areaFil.innerHTML='<option value="">Todas las áreas</option>'+areas.map(a=>`<option value="${a}"${curArea===a?' selected':''}>${a}</option>`).join('');
+    renderTardanzas();
+  }catch{tbody.innerHTML='<tr class="load-row"><td colspan="7">Error de conexión</td></tr>';}
+}
+
+function setTardFil(f){
+  tardFil=f;
+  ['ALL','TARD','PUNT','SIN'].forEach(x=>{
+    document.getElementById('tard-f-'+x)?.classList.toggle('on',x===f);
+  });
+  renderTardanzas();
+}
+
+function renderTardanzas(){
+  const q=(document.getElementById('srch-tard')?.value||'').toLowerCase();
+  const area=document.getElementById('tard-area-fil')?.value||'';
+  let rows=allTardanzas.filter(x=>{
+    if(q&&!( (x.nombre||'').toLowerCase().includes(q)||(x.dni||'').includes(q) ))return false;
+    if(area&&(x.area||'Sin área')!==area)return false;
+    if(tardFil==='TARD'&&x.minutos_Late<=0)return false;
+    if(tardFil==='PUNT'&&(x.minutos_Late>0||x.hora_Marcacion==='--:--'))return false;
+    if(tardFil==='SIN'&&x.hora_Marcacion!=='--:--')return false;
+    return true;
+  });
+
+  // Stats
+  const total=rows.length;
+  const conTard=rows.filter(x=>x.minutos_Late>0).length;
+  const sinMarc=rows.filter(x=>x.hora_Marcacion==='--:--').length;
+  const puntuales=rows.filter(x=>x.minutos_Late===0&&x.hora_Marcacion!=='--:--').length;
+  document.getElementById('stats-tard').innerHTML=`
+    <div class="stat"><div class="stat-lbl">TOTAL</div><div class="stat-val">${total}</div><div class="stat-sub">trabajadores</div></div>
+    <div class="stat"><div class="stat-lbl">PUNTUALES</div><div class="stat-val" style="color:var(--grn)">${puntuales}</div><div class="stat-sub">a tiempo</div></div>
+    <div class="stat"><div class="stat-lbl">CON TARDANZA</div><div class="stat-val" style="color:var(--red)">${conTard}</div><div class="stat-sub">registros</div></div>
+    <div class="stat"><div class="stat-lbl">SIN MARCACIÓN</div><div class="stat-val" style="color:var(--amb)">${sinMarc}</div><div class="stat-sub">sin registro</div></div>`;
+
+  const tbody=document.getElementById('tard-tbody');
+  if(!rows.length){tbody.innerHTML='<tr class="load-row"><td colspan="7">Sin resultados</td></tr>';return;}
+  tbody.innerHTML=rows.map(x=>{
+    const esTard=x.minutos_Late>0;
+    const sinM=x.hora_Marcacion==='--:--';
+    const badge=esTard
+      ?`<span class="ec ec-err">${x.tiempo_Tardanza_Texto}</span>`
+      :sinM
+        ?`<span class="ec ec-warn">Sin marcar</span>`
+        :`<span class="ec ec-ok">Puntual</span>`;
+    const marcBadge=sinM
+      ?`<span style="color:var(--txt3);font-family:var(--mono)">--:--</span>`
+      :`<span style="font-family:var(--mono);font-weight:600;color:${esTard?'var(--red)':'var(--grn)'}">${x.hora_Marcacion}</span>`;
+    return`<tr>
+      <td style="font-weight:600">${x.nombre||'—'}</td>
+      <td style="font-family:var(--mono);font-size:11px;color:var(--txt2)">${x.dni||'—'}</td>
+      <td><span style="font-size:11px;background:var(--surf3);padding:2px 7px;border-radius:10px;color:var(--txt2)">${x.area||'—'}</span></td>
+      <td style="font-family:var(--mono);font-size:11px;color:var(--txt2)">${x.fecha||'—'}</td>
+      <td style="text-align:center;font-family:var(--mono);font-size:12px">${x.hora_Turno||'—'}</td>
+      <td style="text-align:center">${marcBadge}</td>
+      <td style="text-align:center">${badge}</td>
+    </tr>`;
+  }).join('');
+}
+
+function exportTardanzasCSV(){
+  if(!allTardanzas.length){toast('Sin datos para exportar','err');return;}
+  const headers=['DNI','Nombre','Área','Fecha','Hora Turno','Hora Marcación','Tardanza'];
+  const rows=allTardanzas.map(x=>[x.dni,x.nombre,x.area,x.fecha,x.hora_Turno,x.hora_Marcacion,x.tiempo_Tardanza_Texto].map(v=>`"${(v??'').toString().replace(/"/g,'""')}"`).join(','));
+  const csv=[headers.join(','),...rows].join('\n');
+  const a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(csv);
+  const desde=document.getElementById('tard-desde')?.value||'';
+  const hasta=document.getElementById('tard-hasta')?.value||'';
+  a.download=`tardanzas_${desde}_${hasta}.csv`;
+  a.click();
+}
+
+// ══ REPORTES ══════════════════════════════════════════════
+function initReportes(){
+  const now=new Date();
+  document.getElementById('rep-desde').value=new Date(now.getFullYear(),now.getMonth(),1).toISOString().split('T')[0];
+  document.getElementById('rep-hasta').value=now.toISOString().split('T')[0];
+}
+async function loadReporte(){
+  const desde=document.getElementById('rep-desde')?.value;
+  const hasta=document.getElementById('rep-hasta')?.value;
+  const tipo=document.getElementById('rep-tipo')?.value;
+  if(!desde||!hasta){toast('Selecciona rango','err');return;}
+  const tbody=document.getElementById('rep-tbody');
+  const thead=document.getElementById('rep-thead');
+  tbody.innerHTML='<tr class="load-row"><td colspan="8"><div class="spin"></div></td></tr>';
+  try{
+    let url='';
+    if(tipo==='mensual'){
+      const d=new Date(desde);
+      url=`/api/Reporte/mensual?mes=${d.getMonth()+1}&anio=${d.getFullYear()}`;
+    } else if(tipo==='resumen'){
+      url=`/api/Reporte/resumen?fechaInicio=${desde}T00:00:00&fechaFin=${hasta}T23:59:59`;
+    } else if(tipo==='tardanzas'){
+      url=`/api/Reporte/tardanzas?fechaInicio=${desde}T00:00:00&fechaFin=${hasta}T23:59:59`;
+    } else if(tipo==='horas-extras'){
+      url=`/api/Reporte/horas-extras?fechaInicio=${desde}T00:00:00&fechaFin=${hasta}T23:59:59`;
+    } else {
+      url='/api/Reporte/inconsistencias';
+    }
+    const r=await apiFetch(url);
+    if(!r.ok){tbody.innerHTML=`<tr class="load-row"><td>Error: ${r.status}</td></tr>`;return;}
+    const data=await r.json();
+    const rows=Array.isArray(data)?data:(data.items||[]);
+    if(!rows.length){thead.innerHTML='';tbody.innerHTML='<tr class="load-row"><td>Sin resultados</td></tr>';return;}
+    const keys=Object.keys(rows[0]);
+    thead.innerHTML=keys.map(k=>`<th>${k}</th>`).join('');
+    tbody.innerHTML=rows.map(row=>`<tr>${keys.map(k=>`<td style="font-size:12px">${row[k]??'—'}</td>`).join('')}</tr>`).join('');
+  }catch{tbody.innerHTML='<tr class="load-row"><td>Error de conexión</td></tr>';}
+}
+
+// ══ MAESTROS ══════════════════════════════════════════════
+async function loadSucursales(){
+  const q=document.getElementById('srch-suc')?.value||'';
+  const tbody=document.getElementById('suc-tbody');
+  tbody.innerHTML='<tr class="load-row"><td colspan="7"><div class="spin"></div></td></tr>';
+  try{
+    const r=await apiFetch(`/api/Rrhh/Sucursales?pageNumber=1&pageSize=100${q?'&search='+encodeURIComponent(q):''}`);
+    if(!r.ok){tbody.innerHTML='<tr class="load-row"><td colspan="7">Error</td></tr>';return;}
+    const d=await r.json();const items=d.items||d||[];
+    sedes=items;populateSedeFilters();
+    tbody.innerHTML=items.map(s=>`<tr>
+      <td style="font-family:var(--mono);font-size:11px;color:var(--txt2)">${s.id}</td>
+      <td style="font-weight:600">${s.nombreSucursal}</td>
+      <td style="font-size:12px;color:var(--txt2)">${s.direccion||'—'}</td>
+      <td style="font-family:var(--mono);font-size:11px;color:var(--txt3)">${s.latitudCentro?`${s.latitudCentro},${s.longitudCentro}`:'—'}</td>
+      <td style="font-family:var(--mono);font-size:11px;text-align:center">${s.perimetroM??'—'}m</td>
+      <td><span class="ec ${s.esActivo?'ec-ok':'ec-err'}">${s.esActivo?'SÍ':'NO'}</span></td>
+      <td><button class="btn btn-sm" onclick='openMaestroDrawer("sucursal",${JSON.stringify(s).replace(/'/g,"&#39;")})'>Editar</button></td>
+    </tr>`).join('')||'<tr class="load-row"><td colspan="7">Sin registros</td></tr>';
+  }catch{tbody.innerHTML='<tr class="load-row"><td colspan="7">Error</td></tr>';}
+}
+
+async function loadTurnosPage(){
+  const tbody=document.getElementById('turnos-tbody');
+  tbody.innerHTML='<tr class="load-row"><td colspan="8"><div class="spin"></div></td></tr>';
+  try{
+    await loadTiposTurnoData();await loadHTData();
+    const r=await apiFetch('/api/Rrhh/Turnos?pageNumber=1&pageSize=100');
+    if(!r.ok){tbody.innerHTML='<tr class="load-row"><td colspan="8">Error</td></tr>';return;}
+    const d=await r.json();const items=d.items||d||[];allTurnos=items;
+    tbody.innerHTML=items.map(t=>{
+      const tipo=getTipoNombre(t.tipoTurnoId);
+      const hts=horariosTurno.filter(h=>h.turnoId===t.id);
+      return`<tr>
+        <td style="font-family:var(--mono);font-size:11px;color:var(--txt2)">${t.id}</td>
+        <td style="font-weight:600">${t.nombreCodigo||t.nombre_codigo}</td>
+        <td><span class="ec ec-info">${tipo}</span></td>
+        <td style="font-family:var(--mono);font-size:11px;text-align:center">${t.toleranciaIngreso??0} min</td>
+        <td style="font-family:var(--mono);font-size:11px;text-align:center">${t.toleranciaSalida??0} min</td>
+        <td><span class="ec ${t.esActivo?'ec-ok':'ec-err'}">${t.esActivo?'SÍ':'NO'}</span></td>
+        <td style="font-size:11px;color:var(--txt2)">${hts.map(h=>`<span style="font-family:var(--mono);font-size:9px;background:var(--surf3);padding:2px 5px;border-radius:4px;margin-right:3px">id_ht=${h.id}</span>`).join('')||'—'}</td>
+        <td><button class="btn btn-sm" onclick='openMaestroDrawer("turno",${JSON.stringify(t).replace(/'/g,"&#39;")})'>Editar</button></td>
+      </tr>`;
+    }).join('')||'<tr class="load-row"><td colspan="8">Sin registros</td></tr>';
+  }catch{tbody.innerHTML='<tr class="load-row"><td colspan="8">Error</td></tr>';}
+}
+
+async function loadHorariosTurnoPage(){
+  const turnoFil=document.getElementById('ht-turno-fil')?.value;
+  const tbody=document.getElementById('ht-tbody');
+  tbody.innerHTML='<tr class="load-row"><td colspan="6"><div class="spin"></div></td></tr>';
+  try{
+    await loadHTData();await loadTurnosData();
+    // Populate turno filter
+    const htFil=document.getElementById('ht-turno-fil');
+    if(htFil)htFil.innerHTML='<option value="">Todos los turnos</option>'+allTurnos.map(t=>`<option value="${t.id}"${turnoFil==t.id?' selected':''}>${t.nombreCodigo}</option>`).join('');
+    const items=turnoFil?horariosTurno.filter(h=>h.turnoId===parseInt(turnoFil)):horariosTurno;
+    tbody.innerHTML=items.map(h=>{
+      const turno=allTurnos.find(t=>t.id===h.turnoId);
+      const tipo=turno?tiposTurno.find(tt=>tt.id===turno.tipoTurnoId):null;
+      const nm=(h.nombreHorario||'').toUpperCase();
+      const tipoHt=nm.includes('MAÑANA')?'M':nm.includes('TARDE')?'T':nm.includes('NOCHE')?'N':nm.includes('FIJO')||nm.includes('L-V')?'F':'?';
+      const tipoClr={M:'#5eead4',T:'#93c5fd',N:'#c4b5fd',F:'var(--acc)'}[tipoHt]||'var(--txt2)';
+      return`<tr>
+        <td style="font-family:var(--mono);font-size:12px;font-weight:700;color:var(--acc)">${h.id}</td>
+        <td style="font-weight:600">${h.nombreHorario}</td>
+        <td style="font-size:12px;color:var(--txt2)">${turno?.nombreCodigo||`id=${h.turnoId}`}</td>
+        <td><span style="background:var(--surf3);color:${tipoClr};font-size:10px;font-weight:700;font-family:var(--mono);padding:2px 7px;border-radius:4px">${tipoHt}</span> · ${tipo?.nombreTipo||'—'}</td>
+        <td><span class="ec ${h.esActivo?'ec-ok':'ec-err'}">${h.esActivo?'SÍ':'NO'}</span></td>
+        <td><button class="btn btn-sm" onclick='openMaestroDrawer("horarioTurno",${JSON.stringify(h).replace(/'/g,"&#39;")})'>Editar</button></td>
+      </tr>`;
+    }).join('')||'<tr class="load-row"><td colspan="6">Sin registros</td></tr>';
+  }catch{tbody.innerHTML='<tr class="load-row"><td colspan="6">Error</td></tr>';}
+}
+
+async function loadTipoTurnoPage(){
+  const tbody=document.getElementById('tt-tbody');
+  tbody.innerHTML='<tr class="load-row"><td colspan="3"><div class="spin"></div></td></tr>';
+  try{
+    await loadTiposTurnoData();
+    tbody.innerHTML=tiposTurno.map(t=>`<tr>
+      <td style="font-family:var(--mono);font-size:11px;color:var(--txt2)">${t.id}</td>
+      <td style="font-weight:600">${t.nombreTipo||t.nombre_tipo}</td>
+      <td><button class="btn btn-sm" onclick='openMaestroDrawer("tipoTurno",${JSON.stringify(t).replace(/'/g,"&#39;")})'>Editar</button></td>
+    </tr>`).join('')||'<tr class="load-row"><td colspan="3">Sin registros</td></tr>';
+  }catch{tbody.innerHTML='<tr class="load-row"><td colspan="3">Error</td></tr>';}
+}
+
+// ══ MAESTRO DRAWER GENÉRICO ════════════════════════════════
+async function openMaestroDrawer(tipo,item){
+  maestroCtx={tipo,item};
+  const isNew=!item;
+  document.getElementById('dm-del').classList.toggle('hidden',isNew);
+  if(tipo==='sucursal'){
+    document.getElementById('dm-title').textContent=isNew?'Nueva sucursal':'Editar sucursal';
+    document.getElementById('dm-sub').textContent=isNew?'POST /api/Rrhh/Sucursales':`PUT /api/Rrhh/Sucursales/${item?.id}`;
+    document.getElementById('dm-body').innerHTML=`
+      <div class="fld"><div class="fld-lbl">Nombre sucursal</div><input class="inp" id="ms-nombre" value="${item?.nombreSucursal||''}" placeholder="EDS NOMBRE"></div>
+      <div class="fld"><div class="fld-lbl">Dirección</div><input class="inp" id="ms-dir" value="${item?.direccion||''}" placeholder="Av. ..."></div>
+      <div class="form-row">
+        <div class="fld"><div class="fld-lbl">Latitud</div><input class="inp" id="ms-lat" value="${item?.latitudCentro||''}" placeholder="-12.0968"></div>
+        <div class="fld"><div class="fld-lbl">Longitud</div><input class="inp" id="ms-lng" value="${item?.longitudCentro||''}" placeholder="-77.0323"></div>
+      </div>
+      <div class="fld"><div class="fld-lbl">Perímetro GPS (metros)</div><input class="inp" id="ms-per" type="number" value="${item?.perimetroM||100}"></div>
+      <label class="chk-row"><input type="checkbox" id="ms-activo" ${item?.esActivo!==false?'checked':''}><span>Activo</span></label>
+      <div class="info-box">El perímetro determina el radio válido para marcaciones GPS. Recomendado: 50-150 metros según el tamaño de la EDS.</div>`;
+  }
+  else if(tipo==='turno'){
+    const ttOpts=tiposTurno.map(t=>`<option value="${t.id}"${item&&item.tipoTurnoId===t.id?' selected':''}>${t.nombreTipo||t.nombre_tipo}</option>`).join('');
+    document.getElementById('dm-title').textContent=isNew?'Nuevo turno':'Editar turno';
+    document.getElementById('dm-sub').textContent=isNew?'POST /api/Rrhh/Turnos':`PUT /api/Rrhh/Turnos/${item?.id}`;
+    document.getElementById('dm-body').innerHTML=`
+      <div class="fld"><div class="fld-lbl">Código / Nombre</div><input class="inp" id="ms-codigo" value="${item?.nombreCodigo||item?.nombre_codigo||''}" placeholder="ROTATIVO M-T-N 06-14-22"></div>
+      <div class="fld"><div class="fld-lbl">Tipo de turno</div><select class="sel" id="ms-tipo">${ttOpts}</select></div>
+      <div class="form-row">
+        <div class="fld"><div class="fld-lbl">Tolerancia ingreso (min)</div><input class="inp" id="ms-tol-in" type="number" value="${item?.toleranciaIngreso??10}"></div>
+        <div class="fld"><div class="fld-lbl">Tolerancia salida (min)</div><input class="inp" id="ms-tol-sal" type="number" value="${item?.toleranciaSalida??10}"></div>
+      </div>
+      <label class="chk-row"><input type="checkbox" id="ms-activo" ${item?.esActivo!==false?'checked':''}><span>Activo</span></label>
+      <div class="info-box">Después de crear el turno, ve a <strong>Sub-horarios</strong> para agregar los id_ht (ej: Mañana 06-14, Tarde 14-22, Noche 22-06) con sus días de la semana en HORARIOS_DETALLE.</div>`;
+  }
+  else if(tipo==='horarioTurno'){
+    const turOpts=allTurnos.map(t=>`<option value="${t.id}"${item&&(item.turnoId===t.id||item.id_turno===t.id)?' selected':''}>${t.nombreCodigo||t.nombre_codigo}</option>`).join('');
+    document.getElementById('dm-title').textContent=isNew?'Nuevo sub-horario (id_ht)':'Editar sub-horario';
+    document.getElementById('dm-sub').textContent=isNew?'POST /api/Rrhh/HorarioTurno':`PUT /api/Rrhh/HorarioTurno/${item?.id}`;
+
+    // Build HORARIOS_DETALLE rows para los 7 días
+    const DIAS_DETALLE=['LUNES','MARTES','MIERCOLES','JUEVES','VIERNES','SABADO','DOMINGO'];
+    const diasLbl=['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
+    // Preload detalles si edición
+    const detalles=item?await loadHorariosDetalle(item.id):[];
+
+    const detRows=DIAS_DETALLE.map((dia,i)=>{
+      const det=detalles.find(d=>(d.diaSemana||d.dia_semana||'').toUpperCase()===dia)||null;
+      const activo=det!==null;
+      const hi=det?.horaInicio||det?.hora_inicio||'';
+      const hf=det?.horaFin||det?.hora_fin||'';
+      const sigte=det?.salidaDiaSiguiente||det?.salida_dia_siguiente||false;
+      return`<tr id="det-row-${i}">
+        <td style="padding:4px 6px;font-size:11px;font-weight:600;width:40px">${diasLbl[i]}</td>
+        <td style="padding:4px 3px"><label style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="det-act-${i}" ${activo?'checked':''} onchange="toggleDetRow(${i})" style="accent-color:var(--acc)"><span style="font-size:10px">Activo</span></label></td>
+        <td style="padding:4px 3px"><input type="time" class="inp" id="det-ini-${i}" value="${hi}" style="padding:4px 6px;font-size:11px" ${activo?'':'disabled'}></td>
+        <td style="padding:4px 3px"><input type="time" class="inp" id="det-fin-${i}" value="${hf}" style="padding:4px 6px;font-size:11px" ${activo?'':'disabled'}></td>
+        <td style="padding:4px 3px"><label style="display:flex;align-items:center;gap:3px;cursor:pointer"><input type="checkbox" id="det-sig-${i}" ${sigte?'checked':''} style="accent-color:var(--acc)" ${activo?'':'disabled'}><span style="font-size:9px;color:var(--txt2)">+1</span></label></td>
+      </tr>`;
+    }).join('');
+
+    document.getElementById('dm-body').innerHTML=`
+      <div class="fld"><div class="fld-lbl">Nombre del sub-horario</div><input class="inp" id="ms-nombre" value="${item?.nombreHorario||item?.nombre_horario||''}" placeholder="MAÑANA 06-14"></div>
+      <div class="fld"><div class="fld-lbl">Turno padre</div><select class="sel" id="ms-turno">${turOpts}</select></div>
+      <label class="chk-row"><input type="checkbox" id="ms-activo" ${item?.esActivo!==false?'checked':''}><span>Activo</span></label>
+      <div class="divider"></div>
+      <div class="sec-lbl">Horario por día (HORARIOS_DETALLE)</div>
+      <div style="font-size:11px;color:var(--txt2);margin-bottom:6px">Define la hora de entrada, salida y si la salida es al día siguiente (ej: turno noche 22-06).</div>
+      <table style="width:100%;border-collapse:collapse">
+        <thead><tr style="font-size:9px;font-family:var(--mono);color:var(--txt3)">
+          <th style="text-align:left;padding:4px 6px">Día</th>
+          <th style="padding:4px 3px">¿Activo?</th>
+          <th style="padding:4px 3px">Entrada</th>
+          <th style="padding:4px 3px">Salida</th>
+          <th style="padding:4px 3px">+1 día</th>
+        </tr></thead>
+        <tbody>${detRows}</tbody>
+      </table>
+      <div class="info-box" style="margin-top:8px">
+        <strong>id_ht</strong>: ${item?.id||'nuevo'}<br>
+        El SP cierre busca en HORARIOS_DETALLE por dia_semana para calcular hora_entrada_teorica y hora_salida_teorica.<br>
+        Marca <strong>+1</strong> para turnos noche cuya salida es al día siguiente.
+      </div>`;
+  }
+  else if(tipo==='tipoTurno'){
+    document.getElementById('dm-title').textContent=isNew?'Nuevo tipo de turno':'Editar tipo de turno';
+    document.getElementById('dm-sub').textContent=isNew?'POST /api/Rrhh/TipoTurno':`Tipo id=${item?.id}`;
+    document.getElementById('dm-body').innerHTML=`
+      <div class="fld"><div class="fld-lbl">Nombre tipo</div><input class="inp" id="ms-nombre" value="${item?.nombreTipo||item?.nombre_tipo||''}" placeholder="TURNO ROTATIVO"></div>
+      <div class="info-box">Tipos existentes: TURNO FIJO (id=1), TURNO ROTATIVO (id=2), NO FISCALIZADO (id=3), HORARIO VARIABLE (id=4).</div>`;
+  }
+  openDrawer('ov-maestro','dr-maestro');
+}
+
+async function saveMaestro(){
+  if(!maestroCtx)return;
+  const{tipo,item}=maestroCtx;
+  const isNew=!item;
+  let url='',method='POST',body={};
+
+  if(tipo==='sucursal'){
+    body={nombreSucursal:document.getElementById('ms-nombre')?.value.trim(),direccion:document.getElementById('ms-dir')?.value.trim(),latitudCentro:parseFloat(document.getElementById('ms-lat')?.value)||null,longitudCentro:parseFloat(document.getElementById('ms-lng')?.value)||null,perimetroM:parseInt(document.getElementById('ms-per')?.value)||100,esActivo:document.getElementById('ms-activo')?.checked};
+    if(!body.nombreSucursal){toast('Nombre obligatorio','err');return;}
+    url=isNew?'/api/Rrhh/Sucursales':`/api/Rrhh/Sucursales/${item.id}`;
+    if(!isNew){method='PUT';body.id=item.id;}
+  }
+  else if(tipo==='turno'){
+    body={tipoTurnoId:parseInt(document.getElementById('ms-tipo')?.value),nombreCodigo:document.getElementById('ms-codigo')?.value.trim(),toleranciaIngreso:parseInt(document.getElementById('ms-tol-in')?.value)||10,toleranciaSalida:parseInt(document.getElementById('ms-tol-sal')?.value)||10,esActivo:document.getElementById('ms-activo')?.checked};
+    if(!body.nombreCodigo){toast('Código obligatorio','err');return;}
+    url=isNew?'/api/Rrhh/Turnos':`/api/Rrhh/Turnos/${item.id}`;
+    if(!isNew){method='PUT';body.id=item.id;}
+  }
+  else if(tipo==='horarioTurno'){
+    body={turnoId:parseInt(document.getElementById('ms-turno')?.value),nombreHorario:document.getElementById('ms-nombre')?.value.trim(),esActivo:document.getElementById('ms-activo')?.checked};
+    if(!body.nombreHorario){toast('Nombre obligatorio','err');return;}
+    url=isNew?'/api/Rrhh/HorarioTurno':`/api/Rrhh/HorarioTurno/${item.id}`;
+    if(!isNew){method='PUT';body.id=item.id;}
+  }
+  else if(tipo==='tipoTurno'){
+    body={nombreTipo:document.getElementById('ms-nombre')?.value.trim()};
+    if(!body.nombreTipo){toast('Nombre obligatorio','err');return;}
+    url=isNew?'/api/Rrhh/TipoTurno':`/api/Rrhh/TipoTurno/${item.id}`;
+    if(!isNew){method='PUT';body.id=item.id;}
+  }
+
+  try{
+    const r=await apiFetch(url,{method,body:JSON.stringify(body)});
+    if(r.ok||r.status===201||r.status===204){
+      // Si es horarioTurno, guardar también los HORARIOS_DETALLE
+      if(tipo==='horarioTurno'){
+        let idHt=item?.id;
+        if(isNew){try{const rd=await r.json();idHt=rd.id||rd.idHorarioTurno;}catch{}}
+        if(idHt)await saveDetalles(idHt);
+      }
+      toast(`${isNew?'Creado':'Actualizado'} ✓`);closeMaestro();
+      if(tipo==='sucursal'){loadSucursales();loadSedesData().then(populateSedeFilters);}
+      else if(tipo==='turno'){loadTurnosPage();loadTurnosData();}
+      else if(tipo==='horarioTurno'){loadHorariosTurnoPage();loadHTData();}
+      else{loadTipoTurnoPage();loadTiposTurnoData();}
+    }else{const e=await r.json();toast(e.message||`Error ${r.status}`,'err');}
+  }catch{toast('Error de conexión','err');}
+}
+
+// ══ HORARIOS DETALLE ══════════════════════════════════════
+async function loadHorariosDetalle(idHt){
+  try{
+    const r=await apiFetch(`/api/Rrhh/HorarioTurno/${idHt}`);
+    if(r.ok){const d=await r.json();return d.detalles||d.horarioDetalles||[];}
+  }catch{}
+  return[];
+}
+function toggleDetRow(i){
+  const act=document.getElementById(`det-act-${i}`)?.checked;
+  ['det-ini-','det-fin-','det-sig-'].forEach(p=>{const el=document.getElementById(p+i);if(el)el.disabled=!act;});
+}
+async function saveDetalles(idHt){
+  const DIAS=['LUNES','MARTES','MIERCOLES','JUEVES','VIERNES','SABADO','DOMINGO'];
+  const detalles=[];
+  DIAS.forEach((dia,i)=>{
+    const activo=document.getElementById(`det-act-${i}`)?.checked;
+    if(!activo)return;
+    const hi=document.getElementById(`det-ini-${i}`)?.value;
+    const hf=document.getElementById(`det-fin-${i}`)?.value;
+    const sig=document.getElementById(`det-sig-${i}`)?.checked||false;
+    if(hi&&hf)detalles.push({idHorarioTurno:idHt,diaSemana:dia,horaInicio:hi+':00',horaFin:hf+':00',salidaDiaSiguiente:sig,tiempoRefrigerioMinutos:60});
+  });
+  if(!detalles.length)return;
+  // POST cada detalle
+  await Promise.all(detalles.map(d=>apiFetch('/api/Rrhh/HorarioDetalle',{method:'POST',body:JSON.stringify(d)}).catch(()=>{})));
+}
+
+async function deleteMaestro(){
+  if(!maestroCtx?.item)return;
+  const{tipo,item}=maestroCtx;
+  if(!confirm(`¿Eliminar "${item.nombreSucursal||item.nombreCodigo||item.nombreHorario||item.nombreTipo||item.nombre_tipo}"?\nEsta acción puede afectar asignaciones existentes.`))return;
+  const urls={sucursal:`/api/Rrhh/Sucursales/${item.id}`,turno:`/api/Rrhh/Turnos/${item.id}`,horarioTurno:`/api/Rrhh/HorarioTurno/${item.id}`,tipoTurno:`/api/Rrhh/TipoTurno/${item.id}`};
+  try{
+    const r=await apiFetch(urls[tipo],{method:'DELETE'});
+    if(r.ok||r.status===204){toast('Eliminado');closeMaestro();if(tipo==='sucursal')loadSucursales();else if(tipo==='turno')loadTurnosPage();else if(tipo==='horarioTurno')loadHorariosTurnoPage();else loadTipoTurnoPage();}
+    else{const e=await r.json();toast(e.message||'No se puede eliminar — tiene registros relacionados','err');}
+  }catch{toast('Error de conexión','err');}
+}
+function closeMaestro(){closeDrawer('ov-maestro','dr-maestro');maestroCtx=null;}
+
+// ══ UTILS ═════════════════════════════════════════════════
+function openDrawer(ov,dr){document.getElementById(ov).classList.add('open');document.getElementById(dr).classList.add('open');}
+function closeDrawer(ov,dr){document.getElementById(ov).classList.remove('open');document.getElementById(dr).classList.remove('open');}
+
+let toastTimer;
+function toast(msg,type='ok'){
+  clearTimeout(toastTimer);
+  const t=document.getElementById('toast');
+  t.textContent=msg;
+  t.className='toast'+(type==='err'?' err':type==='warn'?' warn':'');
+  t.classList.add('show');
+  toastTimer=setTimeout(()=>t.classList.remove('show'),3500);
+}
+
+// ══ AUTO LOGIN ════════════════════════════════════════════
+if(accessToken&&currentUser)initApp();
+</script>
+</body>
+</html>

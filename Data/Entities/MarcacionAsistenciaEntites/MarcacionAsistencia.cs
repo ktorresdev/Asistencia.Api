@@ -18,8 +18,14 @@ namespace Asistencia.Data.Entities.MarcacionAsistenciaEntites
         public decimal? Longitud { get; set; }
         public string? FotoUrl { get; set; }
         public bool? UbicacionValida { get; set; }
-        public string TokenValidacion { get; set; }
+        /// <summary>Sede de pertenencia del trabajador (para reportes).</summary>
+        public int? SucursalId { get; set; }
+        /// <summary>Sede donde físicamente se realizó la marcación (auditoría).</summary>
+        public int? SucursalMarcacionId { get; set; }
+        public string? TokenValidacion { get; set; }
 
         public virtual Trabajador Trabajador { get; set; } = null!;
+        public virtual SucursalCentro? Sucursal { get; set; }
+        public virtual SucursalCentro? SucursalMarcacion { get; set; }
     }
 }

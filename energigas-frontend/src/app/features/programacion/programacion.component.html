@@ -1,0 +1,255 @@
+<div style="display:contents"><!-- layout owned by :host -->
+
+  <!-- TOOLBAR -->
+  <div class="toolbar">
+    <!-- Filtros -->
+    <div class="tb-group" style="flex:1;min-width:0">
+      <div class="srch-wrap">
+        <span class="srch-ico">⌕</span>
+        <input class="srch" type="text" placeholder="Buscar..." [ngModel]="searchQuery()" (ngModelChange)="searchQuery.set($event)" (keyup.enter)="applyFilters()" />
+      </div>
+      <select class="sel" style="flex:1 1 140px;max-width:180px" [ngModel]="filterSede()" (ngModelChange)="filterSede.set($event)">
+        <option value="">Todas las sedes</option>
+        @for (s of sedes(); track s.id) { <option [value]="s.id">{{ s.nombreSucursal }}</option> }
+      </select>
+      <button class="btn btn-sm" (click)="applyFilters()">Filtrar</button>
+    </div>
+    <!-- Acciones -->
+    <div class="tb-group">
+      @if (loading()) { <span class="spin"></span> }
+      <button class="btn btn-sm" (click)="openVac()">Vac. masivas</button>
+      <button class="btn btn-primary btn-sm" [disabled]="saving()" (click)="openConfirm()">
+        {{ saving() ? 'Guardando...' : 'Guardar semana' }}
+      </button>
+    </div>
+  </div>
+
+  <!-- INFO -->
+  <div style="display:flex;align-items:center;padding:6px 20px;border-bottom:1px solid var(--brd);flex-shrink:0;background:var(--surf)">
+    <span style="font-size:11px;color:var(--txt3);font-family:var(--mono)">
+      {{ ptsItems().length }} rotativos@if (searchQuery() || filterSede()) { · filtrado}
+    </span>
+  </div>
+
+  <!-- PTS GRID -->
+  <div class="grid-outer">
+    <div class="grid-scroll-x">
+    <div class="pts-grid">
+      <div class="pts-cell pts-hdr" style="min-height:auto">Trabajador</div>
+      @for (d of weekDates(); track $index; let i = $index) {
+        <div class="pts-cell pts-hdr" [class.pts-hdr-past]="isPastDay(i)" style="min-height:auto">
+          {{ DAYS_SH[i] }}<br>
+          <span style="font-size:9px">{{ d | date:'dd/MM' }}</span>
+        </div>
+      }
+
+      @if (loading()) {
+        <div style="grid-column:1/-1;padding:30px;text-align:center"><span class="spin"></span></div>
+      } @else if (!ptsItems().length) {
+        <div style="grid-column:1/-1;padding:40px;text-align:center;color:var(--txt3)">Sin trabajadores</div>
+      } @else {
+        @for (grupo of ptsItemsBySede(); track grupo.sucursalId) {
+          <!-- Separador de sede -->
+          <div class="pts-sede-hdr" style="grid-column:1/-1;padding:6px 12px;background:var(--surf2);border-top:2px solid var(--acc);font-size:10px;font-weight:700;color:var(--txt1);letter-spacing:.05em;text-transform:uppercase">
+            {{ grupo.sedeName }}
+            <span style="font-weight:400;font-size:9px;color:var(--txt3)"> · {{ grupo.saved.length + grupo.pending.length }} trabajadores</span>
+          </div>
+
+          @if (grupo.saved.length) {
+            <div class="pts-section-hdr">Programados <span>{{ grupo.saved.length }}</span></div>
+            @for (item of grupo.saved; track item.trabajadorId) {
+              <div class="pts-cell pts-worker" style="background:var(--surf2)">
+                <div style="font-size:11px;font-weight:600">{{ item.trabajadorNombre }}</div>
+                <div style="font-size:9px;color:var(--txt3);font-family:var(--mono)">
+                  <span class="tipo-tag tipo-ROT">ROT</span>
+                </div>
+              </div>
+              @for (d of weekDates(); track $index; let i = $index) {
+                @let cs = getCellState(item.trabajadorId, i);
+                @let horas = getHorarioHoras(cs.htId, i);
+                @let past = isPastDay(i);
+                <div class="pts-cell pts-day-cell"
+                     [class.pts-day-past]="past && cs.estado !== 'A'"
+                     [class.pts-day-saved]="!past && cs.estado !== 'A' && isDaySaved(item.trabajadorId, i) && !hasPendingChange(item.trabajadorId, i)"
+                     [class.pts-day-modified]="!past && hasPendingChange(item.trabajadorId, i)"
+                     [class.pts-day-locked]="cs.estado === 'A'">
+                  @if (cs.estado === 'A') {
+                    <div class="pts-btn pts-a" style="cursor:default;pointer-events:none"
+                         [title]="'Este día tiene una ausencia autorizada (' + (cs.tipoAusencia ?? '') + '). No se puede modificar desde aquí.'">
+                      🔒 {{ getAusenciaAbrev(cs.tipoAusencia) }}
+                    </div>
+                    <div style="font-size:8px;color:var(--red);opacity:.7;text-align:center;margin-top:2px">ausencia registrada</div>
+                  } @else if (past) {
+                    <div class="pts-past-lbl">{{ getBtnLabel(cs.estado) }}</div>
+                    @if (horas) {
+                      <div style="font-size:9px;color:var(--txt3);font-family:var(--mono);white-space:nowrap;opacity:.5">{{ horas }}</div>
+                    }
+                  } @else {
+                    <button [class]="getBtnClass(cs.estado)" (click)="cyclePTS(item.trabajadorId, i)">{{ getBtnLabel(cs.estado) }}</button>
+                    @if (horas) {
+                      <div style="font-size:9px;color:var(--txt2);font-family:var(--mono);white-space:nowrap">{{ horas }}</div>
+                    }
+                    @if (cs.estado === 'W') {
+                      @if (getHtOptions(item).length) {
+                        <select class="pts-ht" (change)="setHt(item.trabajadorId, i, $any($event.target).value)">
+                          <option value="">☰ turno</option>
+                          @for (h of getHtOptions(item); track h.id) {
+                            <option [value]="h.id" [selected]="h.id === cs.htId">{{ h.nombreHorario }}</option>
+                          }
+                        </select>
+                      } @else {
+                        <div style="font-size:9px;color:var(--red)">Sin turno disponible para este trabajador</div>
+                      }
+                    }
+                    <!-- indicador de estado -->
+                    @if (hasPendingChange(item.trabajadorId, i)) {
+                      <div class="pts-day-dot pts-dot-mod" title="Modificado — recuerda guardar la semana para que el cambio quede registrado"></div>
+                    } @else if (isDaySaved(item.trabajadorId, i)) {
+                      <div class="pts-day-dot pts-dot-saved" title="Guardado correctamente"></div>
+                    }
+                  }
+                </div>
+              }
+            }
+          }
+
+          @if (grupo.pending.length) {
+            <div class="pts-section-hdr" style="opacity:.7">Sin programar <span>{{ grupo.pending.length }}</span></div>
+            @for (item of grupo.pending; track item.trabajadorId) {
+              <div class="pts-cell pts-worker" style="background:var(--surf3)">
+                <div style="font-size:11px;font-weight:600">{{ item.trabajadorNombre }}</div>
+                <div style="font-size:9px;color:var(--txt3);font-family:var(--mono)">
+                  <span class="tipo-tag tipo-ROT">ROT</span>
+                </div>
+              </div>
+              @for (d of weekDates(); track $index; let i = $index) {
+                @let cs = getCellState(item.trabajadorId, i);
+                @let horas = getHorarioHoras(cs.htId, i);
+                @let past = isPastDay(i);
+                <div class="pts-cell pts-day-cell"
+                     [class.pts-day-past]="past && cs.estado !== 'A'"
+                     [class.pts-day-saved]="!past && cs.estado !== 'A' && isDaySaved(item.trabajadorId, i) && !hasPendingChange(item.trabajadorId, i)"
+                     [class.pts-day-modified]="!past && hasPendingChange(item.trabajadorId, i)"
+                     [class.pts-day-locked]="cs.estado === 'A'">
+                  @if (cs.estado === 'A') {
+                    <div class="pts-btn pts-a" style="cursor:default;pointer-events:none"
+                         [title]="'Este día tiene una ausencia autorizada (' + (cs.tipoAusencia ?? '') + '). No se puede modificar desde aquí.'">
+                      🔒 {{ getAusenciaAbrev(cs.tipoAusencia) }}
+                    </div>
+                    <div style="font-size:8px;color:var(--red);opacity:.7;text-align:center;margin-top:2px">ausencia registrada</div>
+                  } @else if (past) {
+                    <div class="pts-past-lbl">{{ getBtnLabel(cs.estado) }}</div>
+                    @if (horas) {
+                      <div style="font-size:9px;color:var(--txt3);font-family:var(--mono);white-space:nowrap;opacity:.5">{{ horas }}</div>
+                    }
+                  } @else {
+                    <button [class]="getBtnClass(cs.estado)" (click)="cyclePTS(item.trabajadorId, i)">{{ getBtnLabel(cs.estado) }}</button>
+                    @if (horas) {
+                      <div style="font-size:9px;color:var(--txt2);font-family:var(--mono);white-space:nowrap">{{ horas }}</div>
+                    }
+                    @if (cs.estado === 'W') {
+                      @if (getHtOptions(item).length) {
+                        <select class="pts-ht" (change)="setHt(item.trabajadorId, i, $any($event.target).value)">
+                          <option value="">☰ turno</option>
+                          @for (h of getHtOptions(item); track h.id) {
+                            <option [value]="h.id" [selected]="h.id === cs.htId">{{ h.nombreHorario }}</option>
+                          }
+                        </select>
+                      } @else {
+                        <div style="font-size:9px;color:var(--red)">Sin turno disponible para este trabajador</div>
+                      }
+                    }
+                    <!-- indicador de estado -->
+                    @if (hasPendingChange(item.trabajadorId, i)) {
+                      <div class="pts-day-dot pts-dot-mod" title="Modificado — recuerda guardar la semana para que el cambio quede registrado"></div>
+                    } @else if (isDaySaved(item.trabajadorId, i)) {
+                      <div class="pts-day-dot pts-dot-saved" title="Guardado correctamente"></div>
+                    }
+                  }
+                </div>
+              }
+            }
+          }
+        }
+      }
+    </div>
+    </div><!-- /grid-scroll-x -->
+  </div><!-- /grid-outer -->
+
+</div>
+
+<!-- CONFIRM MODAL -->
+@if (confirmOpen()) {
+  <div class="modal-backdrop" (click)="closeConfirm()">
+    <div class="modal-card" (click)="$event.stopPropagation()">
+      <div class="modal-hdr">
+        <span class="modal-ico">⚠</span>
+        <span class="modal-title">Guardar programación de la semana</span>
+      </div>
+      <div class="modal-body">
+        <p style="font-size:13px;color:var(--txt);margin-bottom:12px">
+          Estás a punto de registrar la programación semanal. Una vez guardado, cada trabajador tendrá asignado su turno para los días indicados.
+        </p>
+        <div class="modal-stats">
+          <div class="modal-stat">
+            <span class="modal-stat-val">{{ confirmStats().trabajadores }}</span>
+            <span class="modal-stat-lbl">trabajadores</span>
+          </div>
+          <div class="modal-stat">
+            <span class="modal-stat-val">{{ confirmStats().dias }}</span>
+            <span class="modal-stat-lbl">días a guardar</span>
+          </div>
+          @if (confirmStats().sinHorario > 0) {
+            <div class="modal-stat modal-stat-warn">
+              <span class="modal-stat-val">{{ confirmStats().sinHorario }}</span>
+              <span class="modal-stat-lbl">días sin turno asignado</span>
+            </div>
+          }
+        </div>
+        @if (confirmStats().sinHorario > 0) {
+          <div class="warn-box" style="margin-top:12px;font-size:11px">
+            Hay días marcados como <strong>Trabaja</strong> pero sin turno seleccionado. Esos días no se guardarán. Puedes cancelar, elegir el turno correspondiente en cada celda y volver a guardar.
+          </div>
+        }
+      </div>
+      <div class="modal-ftr">
+        <button class="btn btn-primary" (click)="savePTS()">Aceptar y guardar</button>
+        <button class="btn" (click)="closeConfirm()">Cancelar</button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- VAC OVERLAY -->
+<div class="overlay" [class.open]="vacOpen()" (click)="closeVac()"></div>
+<div class="drawer" [class.open]="vacOpen()">
+  <div class="drawer-hdr">
+    <span class="drawer-title">Vacaciones masivas</span>
+    <button class="btn-icon" (click)="closeVac()">✕</button>
+  </div>
+  <div class="drawer-body">
+    <div class="fld">
+      <label class="fld-lbl">Trabajador</label>
+      <select class="sel" [ngModel]="vacTrabId()" (ngModelChange)="vacTrabId.set(+$event)">
+        @for (item of ptsItems(); track item.trabajadorId) {
+          <option [value]="item.trabajadorId">{{ item.trabajadorNombre }} ({{ getTipoLabel(item.tipo) }})</option>
+        }
+      </select>
+    </div>
+    <div class="form-row">
+      <div class="fld">
+        <label class="fld-lbl">Fecha inicio</label>
+        <input type="date" class="inp" [ngModel]="vacInicio()" (ngModelChange)="vacInicio.set($event)" />
+      </div>
+      <div class="fld">
+        <label class="fld-lbl">Fecha fin</label>
+        <input type="date" class="inp" [ngModel]="vacFin()" (ngModelChange)="vacFin.set($event)" />
+      </div>
+    </div>
+    <div class="warn-box">Todos los días del rango seleccionado quedarán registrados como <strong>Vacaciones</strong>. El trabajador no aparecerá como pendiente de programar durante esas fechas.</div>
+  </div>
+  <div class="drawer-ftr">
+    <button class="btn btn-primary" (click)="saveVac()">Guardar vacaciones</button>
+    <button class="btn" (click)="closeVac()">Cancelar</button>
+  </div>
+</div>

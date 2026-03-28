@@ -1,0 +1,389 @@
+<div style="display:contents;animation:fadeUp .18s ease"><!-- layout owned by :host -->
+
+  <!-- STATS -->
+  <div class="stats-row">
+    <div class="stat">
+      <div class="stat-lbl">Trabajadores</div>
+      <div class="stat-val">{{ stats().total }}</div>
+      <div class="stat-sub">en vista</div>
+    </div>
+    <div class="stat">
+      <div class="stat-lbl">Asignados</div>
+      <div class="stat-val">{{ stats().asig }}</div>
+      <div class="stat-sub">esta semana</div>
+    </div>
+    <div class="stat">
+      <div class="stat-lbl">Descansos/Vac.</div>
+      <div class="stat-val">{{ stats().desc }}</div>
+      <div class="stat-sub">programados</div>
+    </div>
+    <div class="stat">
+      <div class="stat-lbl">Sin asignar</div>
+      <div class="stat-val" [style.color]="stats().sinA > 0 ? 'var(--red)' : 'var(--grn)'">{{ stats().sinA }}</div>
+      <div class="stat-sub">{{ stats().sinA > 0 ? '⚠ requieren atención' : '✓ al día' }}</div>
+    </div>
+  </div>
+
+  <!-- TOOLBAR -->
+  <div class="toolbar">
+    <div class="srch-wrap">
+      <span class="srch-ico">⌕</span>
+      <input class="srch" type="text" placeholder="Buscar trabajador..." [ngModel]="searchQuery()" (ngModelChange)="searchQuery.set($event)" />
+    </div>
+
+    <select class="sel" style="max-width:180px" [ngModel]="sedeFilter()" (ngModelChange)="sedeFilter.set($event)">
+      <option value="">Todas las sedes</option>
+      @for (s of sedes(); track s.id) {
+        <option [value]="s.id">{{ s.nombreSucursal }}</option>
+      }
+    </select>
+
+    <button class="pill" [class.on]="filterTipo() === 'ALL'" (click)="setFilterTipo('ALL')">TODOS</button>
+    <button class="pill" [class.on]="filterTipo() === 'ROT'" (click)="setFilterTipo('ROT')">ROT</button>
+    <button class="pill" [class.on]="filterTipo() === 'FIJ'" (click)="setFilterTipo('FIJ')">FIJ</button>
+
+    @if (auth.isAdminOrSupervisor()) {
+      <button class="btn btn-primary btn-sm" (click)="publishWeek()">Publicar semana</button>
+    }
+
+    @if (loading()) {
+      <span class="spin"></span>
+    }
+  </div>
+
+  <!-- GRID -->
+  <div class="grid-outer">
+    <div class="grid-scroll-x">
+    <table class="sched">
+      <thead>
+        <tr>
+          <th class="th-w">Trabajador</th>
+          @for (d of weekDates(); track $index; let i = $index) {
+            <th>
+              {{ DAYS[i] }}<br>
+              <span style="font-family:var(--mono);font-size:9px">
+                {{ d | date:'dd/MM' }}
+              </span>
+              @if (d.toDateString() === today.toDateString()) {
+                <span style="color:var(--acc)"> ●</span>
+              }
+            </th>
+          }
+        </tr>
+      </thead>
+      <tbody>
+        @if (loading()) {
+          <tr class="load-row">
+            <td [attr.colspan]="8" style="text-align:center;padding:30px">
+              <span class="spin"></span>
+            </td>
+          </tr>
+        } @else if (!filteredWorkers().length) {
+          <tr class="load-row">
+            <td [attr.colspan]="8">Sin trabajadores</td>
+          </tr>
+        } @else {
+          @for (grupo of workersBySede(); track grupo.sedeName) {
+            <!-- Separador de sede -->
+            <tr>
+              <td [attr.colspan]="8" style="padding:7px 14px;background:var(--surf2);border-top:2px solid var(--acc);font-size:11px;font-weight:700;color:var(--txt1);letter-spacing:.05em;text-transform:uppercase">
+                {{ grupo.sedeName }}
+                <span style="font-weight:400;font-size:10px;color:var(--txt3)"> · {{ grupo.totalWorkers }} trabajadores</span>
+              </td>
+            </tr>
+            @for (sub of grupo.subGroups; track sub.label) {
+              <!-- Separador de turno -->
+              <tr>
+                <td [attr.colspan]="8" style="padding:4px 22px;background:var(--surf3);border-top:1px solid var(--brd);font-size:9px;font-weight:600;color:var(--txt3);letter-spacing:.08em;text-transform:uppercase">
+                  {{ sub.label }}
+                  <span style="font-weight:400;opacity:.7"> · {{ sub.workers.length }}</span>
+                </td>
+              </tr>
+              @for (w of sub.workers; track w.id) {
+                <tr>
+                  <td class="td-w">
+                    <div class="w-name">
+                      <span class="tipo-tag" [class]="'tipo-' + w.tipo">{{ w.tipo }}</span>
+                      {{ w.name }}
+                    </div>
+                    <div class="w-meta">
+                      <span>{{ w.dni }}</span>
+                    </div>
+                  </td>
+                  @for (d of weekDates(); track $index; let i = $index) {
+                    <td style="text-align:center;padding:4px;min-width:56px">
+                      @let dateStr = week.toISO(d);
+                      @let ausencia = ptsSemana()[w.id]?.[dateStr]?.tipoAusencia;
+                      @let dobleta    = getDobletaCobertura(w.id, dateStr);
+                      @let cobAusente = getCoberturaAsAusente(w.id, dateStr);
+                      <div style="display:flex;flex-direction:column;align-items:center;gap:2px">
+
+                        <!-- Chips en fila (propio + dobleta al costado) -->
+                        @let displayShift = getDisplayShift(w, i);
+                        @let horas = getHorarioHoras(getHtForDay(w, i) ?? w.idHorarioTurno, i, w.idTurno);
+                        <div style="display:flex;flex-direction:row;align-items:center;gap:3px">
+
+                          <!-- Chip principal -->
+                          <button [class]="getChipClass(displayShift)"
+                            (click)="openShiftDrawer(w, i)"
+                            [title]="(ausencia ?? getHtName(getHtForDay(w, i))) + (horas ? ' · ' + horas : '')"
+                            [style.opacity]="ausencia ? '0.75' : '1'"
+                            [style.cursor]="ausencia ? 'default' : 'pointer'">
+                            {{ getChipLabel(displayShift) }}
+                          </button>
+
+                          <!-- Chip dobleta al costado -->
+                          @if (dobleta) {
+                            @let cobHtName = getHtName(dobleta.idHorarioTurnoOriginal);
+                            @let cobLetter = getHtLetter(cobHtName);
+                            @let cobHoras  = getHorarioHoras(dobleta.idHorarioTurnoOriginal ?? null, i);
+                            <div [class]="'chip chip-' + cobLetter"
+                                 style="cursor:default;opacity:.9;outline:2px dashed rgba(255,255,255,.25)"
+                                 [title]="'Cobertura extra · ' + cobHtName + (cobHoras ? ' · ' + cobHoras : '')">
+                              {{ cobLetter }}
+                            </div>
+                          }
+
+                        </div>
+
+                        <!-- Indicador: su turno fue cubierto por otro trabajador -->
+                        @if (cobAusente && !dobleta) {
+                          <div style="font-size:8px;color:var(--grn);font-family:var(--mono);white-space:nowrap"
+                               [title]="'Cubierto por ' + getWorkerNameById(cobAusente.idTrabajadorCubre ?? 0)">
+                            ✓ cubierto
+                          </div>
+                        }
+
+                      </div>
+                    </td>
+                  }
+                </tr>
+              }
+            }
+          }
+        }
+      </tbody>
+    </table>
+    </div><!-- /grid-scroll-x -->
+  </div>
+</div>
+
+<!-- OVERLAY -->
+<div class="overlay" [class.open]="drawerOpen()" (click)="closeShiftDrawer()"></div>
+
+<!-- SHIFT DRAWER -->
+<div class="drawer" [class.open]="drawerOpen()">
+  @if (shiftEdit()) {
+    <div class="drawer-hdr">
+      <span class="drawer-title">
+        Asignar turno · {{ shiftEdit()!.worker.name.split(' ').slice(0,2).join(' ') }}
+      </span>
+      <button class="btn-icon" (click)="closeShiftDrawer()">✕</button>
+    </div>
+
+    <div class="drawer-body">
+
+      <!-- Tipo de día — 4 columnas -->
+      <div>
+        <div class="fld-lbl" style="margin-bottom:8px">Tipo de día</div>
+        <div class="shift-grid">
+          @for (opt of CHIP_OPTIONS; track opt.k) {
+            <div class="shift-card" [class.sel]="tempShift() === opt.k"
+                 [style.--shift-clr]="opt.fg"
+                 (click)="selectShift(opt.k)">
+              <div class="shift-card-code" [style.background]="opt.bg" [style.color]="opt.fg">
+                {{ opt.k }}
+              </div>
+              <div class="shift-card-name">{{ opt.n }}</div>
+              <div class="shift-card-sub">{{ opt.t }}</div>
+            </div>
+          }
+        </div>
+      </div>
+
+      <!-- Horario del día — select con todos los horarios -->
+      @if (tempShift() === 'W') {
+        <div class="divider"></div>
+        <div>
+          <div class="fld-lbl" style="margin-bottom:8px">Horario exacto del día</div>
+          <select class="sel" style="width:100%"
+            [ngModel]="tempHtId()"
+            (ngModelChange)="selectHt($event ? +$event : 0)">
+            <option [value]="0">— Sin horario —</option>
+            @for (h of horariosTurno(); track h.id) {
+              <option [value]="h.id">{{ h.nombreHorario }}</option>
+            }
+          </select>
+        </div>
+      }
+
+      <div class="divider"></div>
+
+      <!-- Cobertura rápida -->
+      <div>
+        @let currentShift = getShift(shiftEdit()!.worker, shiftEdit()!.dayIndex);
+        @if (currentShift === 'D' || currentShift === 'V' || currentShift === 'B') {
+          <div style="font-size:11px;color:var(--txt3);padding:8px 12px;background:var(--surf2);border-radius:8px;border:1px solid var(--brd);text-align:center">
+            @if (currentShift === 'D') { No se puede registrar cobertura: el trabajador tiene <strong>Descanso</strong> programado este día. }
+            @else if (currentShift === 'V') { No se puede registrar cobertura: el trabajador tiene una <strong>ausencia</strong> registrada. }
+            @else { No se puede registrar cobertura: el trabajador tiene <strong>Falta</strong> registrada. }
+          </div>
+        } @else {
+        <button class="cob-toggle" (click)="openCoberturaSection()">
+          🛡 Registrar cobertura para este día
+          <span style="margin-left:auto;font-size:10px">{{ coberturaOpen() ? '▲' : '▼' }}</span>
+        </button>
+
+        @if (coberturaOpen()) {
+          <div class="cob-mini">
+
+            <!-- Afectado (solo lectura) -->
+            <div style="font-size:11px;color:var(--txt2);padding:6px 10px;background:var(--surf3);border-radius:6px;border:1px solid var(--brd)">
+              Trabajador ausente: <strong>{{ shiftEdit()!.worker.name }}</strong>
+              · <span style="font-family:var(--mono)">{{ week.toISO(weekDates()[shiftEdit()!.dayIndex]) }}</span>
+            </div>
+
+            <!-- Tipo de operación -->
+            <div class="fld">
+              <div class="fld-lbl">Tipo de operación</div>
+              <div class="tipo-sel">
+                @for (t of COB_TIPOS; track t) {
+                  <div class="tipo-opt" [class.sel]="cobTipo()===t" (click)="cobTipo.set(t)">
+                    <div style="font-size:18px">{{ t==='COBERTURA'?'🛡':'🔄' }}</div>
+                    <div style="font-size:10px;font-weight:600">{{ t === 'COBERTURA' ? 'Cobertura' : 'Cambio de turno' }}</div>
+                  </div>
+                }
+              </div>
+            </div>
+
+            <!-- Toggle reemplazo -->
+            @if (cobTipo() === 'COBERTURA') {
+              <div class="fld">
+                <label class="check-row">
+                  <input type="checkbox" [ngModel]="cobEsReemplazo()" (ngModelChange)="cobEsReemplazo.set($event)" />
+                  <span>El trabajador faltó y necesita ser reemplazado</span>
+                </label>
+                <div style="font-size:10px;color:var(--txt3);margin-top:4px;padding-left:22px">
+                  @if (cobEsReemplazo()) { El trabajador ausente quedará registrado con falta cubierta.
+                  } @else { Se asignará un turno adicional sin registrar falta al trabajador. }
+                </div>
+              </div>
+            }
+
+            <!-- Motivo de falta -->
+            @if (cobTipo() === 'COBERTURA' && cobEsReemplazo()) {
+              <div class="fld">
+                <div class="fld-lbl">Motivo de la falta</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                  @for (m of COB_MOTIVOS; track m.k) {
+                    <div class="tipo-opt" [class.sel]="cobMotivo()===m.k" (click)="cobMotivo.set(m.k)" style="padding:8px 10px">
+                      <div style="font-size:10px;font-weight:700">{{ m.label }}</div>
+                      <div style="font-size:9px;color:var(--txt2)">{{ m.sub }}</div>
+                    </div>
+                  }
+                </div>
+              </div>
+            }
+
+            <!-- Turno a cubrir (auto-poblado, bloqueado si es único) -->
+            <div class="fld">
+              @let htOpts = getAfectadoHtOptions(shiftEdit()!.worker, shiftEdit()!.dayIndex);
+              <label class="fld-lbl">Turno que se va a cubrir</label>
+              @if (htOpts.length === 0) {
+                <div class="inp" style="background:var(--surf3);cursor:default;color:var(--txt3)">Sin turno asignado este día</div>
+              } @else if (htOpts.length === 1) {
+                <div class="inp" style="background:var(--surf3);cursor:default">
+                  {{ htOpts[0].nombreHorario }}
+                  <span style="font-size:10px;color:var(--txt3);margin-left:6px">· asignado automáticamente</span>
+                </div>
+              } @else {
+                <select class="sel" [ngModel]="cobHt()" (ngModelChange)="cobHt.set($event ? +$event : null)">
+                  @for (h of htOpts; track h.id) {
+                    <option [value]="h.id">{{ h.nombreHorario }}</option>
+                  }
+                </select>
+                <div style="font-size:10px;color:var(--amb);margin-top:4px">
+                  Este trabajador tiene {{ htOpts.length }} turnos asignados ese día. Selecciona el que no podrá cubrir.
+                </div>
+              }
+            </div>
+
+            <!-- Quien cubre -->
+            <div class="fld">
+              <label class="fld-lbl">{{ cobTipo() === 'CAMBIO' ? 'Trabajador B (recibe el turno)' : 'Trabajador que cubre' }}</label>
+              <div class="srch-sel">
+                <input class="inp" type="text" placeholder="Buscar por nombre..."
+                  [ngModel]="cobCubreQuery()"
+                  (ngModelChange)="cobCubreQuery.set($event); cobCubreOpen.set(true)"
+                  (focus)="cobCubreOpen.set(true)"
+                  (blur)="closeCobDrop()" />
+                @if (cobCubre()) {
+                  <span class="srch-sel-tag">
+                    {{ getWorkerNameById(cobCubre()!) }}
+                    <button (mousedown)="cobCubre.set(null); cobCubreQuery.set('')">✕</button>
+                  </span>
+                }
+                @if (cobCubreOpen() && filteredCobCubre().length) {
+                  <div class="srch-drop">
+                    @for (w of filteredCobCubre(); track w.id) {
+                      <div class="srch-opt" (mousedown)="selectCobCubre(w)">
+                        <span>{{ w.name }}</span>
+                        <span class="srch-opt-meta">{{ w.dni }} · {{ w.tipo }}</span>
+                      </div>
+                    }
+                  </div>
+                }
+              </div>
+            </div>
+
+            <!-- Descanso compensatorio -->
+            @if (cobTipo() === 'COBERTURA') {
+              <div class="fld">
+                <div class="fld-lbl">¿Tendrá descanso compensatorio?</div>
+                <div class="radio-row">
+                  <label class="radio-opt">
+                    <input type="radio" name="cobDescanso" [value]="true"
+                      [ngModel]="cobTieneDescanso()" (ngModelChange)="cobTieneDescanso.set($event)" />
+                    Sí, indicar fecha
+                  </label>
+                  <label class="radio-opt">
+                    <input type="radio" name="cobDescanso" [value]="false"
+                      [ngModel]="cobTieneDescanso()" (ngModelChange)="cobTieneDescanso.set($event)" />
+                    No
+                  </label>
+                </div>
+                @if (cobTieneDescanso()) {
+                  <input type="date" class="inp" style="margin-top:8px"
+                    [ngModel]="cobDev()" (ngModelChange)="cobDev.set($event)" />
+                  @if (cobDev()) {
+                    <div style="font-size:11px;color:var(--txt2);margin-top:4px">
+                      El {{ cobDev() | date:'dd/MM/yyyy' }} se le asignará automáticamente un día de descanso compensatorio.
+                    </div>
+                  } @else {
+                    <div style="font-size:11px;color:var(--red);margin-top:4px">La fecha es obligatoria.</div>
+                  }
+                }
+              </div>
+            }
+
+            <div class="info-box" [innerHTML]="COB_MSGS[cobTipo()]"></div>
+
+            <button class="btn btn-primary btn-sm" style="width:100%"
+              [disabled]="savingCob() || !cobCubre()"
+              (click)="saveCobertura()">
+              {{ savingCob() ? 'Guardando...' : (cobTipo() === 'CAMBIO' ? 'Registrar cambio de turno' : 'Registrar cobertura') }}
+            </button>
+          </div>
+        }
+        } <!-- /else no es descanso/vacaciones/falta -->
+      </div>
+
+    </div>
+
+    <div class="drawer-ftr">
+      <button class="btn btn-primary" (click)="saveShift()">Guardar turno</button>
+      <button class="btn btn-danger" (click)="clearShift()">Limpiar</button>
+      <button class="btn" (click)="closeShiftDrawer()">Cancelar</button>
+    </div>
+  }
+</div>

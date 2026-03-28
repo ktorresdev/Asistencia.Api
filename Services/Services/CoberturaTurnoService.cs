@@ -58,6 +58,55 @@ namespace Asistencia.Services.Services
             };
 
             _context.CoberturasTurno.Add(cobertura);
+
+            // Automatizar la asignación de sucursal si el trabajador que cubre no pertenece a ella
+            var trabajadorAusente = await _context.Trabajadores
+                .FirstOrDefaultAsync(t => t.Id == dto.IdTrabajadorAusente);
+
+            if (trabajadorAusente?.SucursalId != null)
+            {
+                var sucursalId = trabajadorAusente.SucursalId.Value;
+
+                var yaAsignado = await _context.TrabajadorSucursales
+                    .AnyAsync(ts => ts.TrabajadorId == dto.IdTrabajadorCubre && ts.SucursalId == sucursalId)
+                    || await _context.Trabajadores
+                    .AnyAsync(t => t.Id == dto.IdTrabajadorCubre && t.SucursalId == sucursalId);
+
+                if (!yaAsignado)
+                {
+                    var nuevaAsignacion = new TrabajadorSucursal
+                    {
+                        TrabajadorId = dto.IdTrabajadorCubre,
+                        SucursalId = sucursalId,
+                        EsSucursalPrincipal = false,
+                        PuedeGestionar = false,
+                        FechaInicio = DateOnly.FromDateTime(DateTime.Today)
+                    };
+                    _context.TrabajadorSucursales.Add(nuevaAsignacion);
+                }
+            }
+
+            // Si es ANTICIPO, registrar el descanso planificado para el trabajador que cubre
+            if (cobertura.TipoCobertura == "ANTICIPO" && dto.FechaSwapDevolucion.HasValue)
+            {
+                var yaExisteDescanso = await _context.ProgramacionDescansos
+                    .AnyAsync(p => p.TrabajadorId == dto.IdTrabajadorCubre && p.Fecha == dto.FechaSwapDevolucion.Value);
+
+                if (!yaExisteDescanso)
+                {
+                    var descanso = new ProgramacionDescanso
+                    {
+                        TrabajadorId = dto.IdTrabajadorCubre,
+                        Fecha = dto.FechaSwapDevolucion.Value,
+                        EsDescanso = true,
+                        EsDiaBoleta = false,
+                        CreatedBy = dto.AprobadoPor,
+                        CreatedAt = DateTime.UtcNow
+                    };
+                    _context.ProgramacionDescansos.Add(descanso);
+                }
+            }
+
             await _context.SaveChangesAsync();
 
             return cobertura;

@@ -1,0 +1,204 @@
+<div style="display:contents">
+
+  <!-- TOOLBAR -->
+  <div class="toolbar">
+    <span style="font-size:13px;font-weight:600">Registro de Ausencias</span>
+    <span style="flex:1"></span>
+    @if (loading() || loadingLista()) { <span class="spin"></span> }
+    <button class="btn btn-primary btn-sm" (click)="openDrawer()">+ Nueva ausencia</button>
+  </div>
+
+  <!-- LISTA -->
+  <div class="aus-wrap">
+
+    <!-- Filtros -->
+    <div class="aus-list-filters">
+      <div class="srch-wrap" style="flex:1">
+        <span class="srch-ico">⌕</span>
+        <input class="srch" placeholder="Nombre o DNI..."
+          [ngModel]="listQuery()" (ngModelChange)="listQuery.set($event); listPagina.set(0)" />
+      </div>
+      <select class="sel" style="max-width:170px"
+        [ngModel]="listTipo()" (ngModelChange)="listTipo.set($event); loadAusencias()">
+        <option value="">Todos los tipos</option>
+        @for (t of TIPOS; track t.key) {
+          <option [value]="t.key">{{ t.label }}</option>
+        }
+      </select>
+      <input type="date" class="inp" style="max-width:140px"
+        [ngModel]="listFechaInicio()" (ngModelChange)="listFechaInicio.set($event)" />
+      <input type="date" class="inp" style="max-width:140px"
+        [ngModel]="listFechaFin()" (ngModelChange)="listFechaFin.set($event)" />
+      <button class="btn btn-sm" (click)="loadAusencias()">Buscar</button>
+    </div>
+
+    <!-- Tabla -->
+    <div class="grid-outer">
+      <div class="tbl-wrap">
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th>Trabajador</th>
+            <th>DNI</th>
+            <th>Fecha</th>
+            <th>Tipo</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @if (loadingLista()) {
+            <tr class="load-row"><td colspan="5"><span class="spin"></span></td></tr>
+          } @else if (!filteredAusencias().length) {
+            <tr class="load-row">
+              <td colspan="5" style="color:var(--txt3)">Sin ausencias en el rango seleccionado</td>
+            </tr>
+          } @else {
+            @for (a of listPaginaActual(); track a.id) {
+              <tr>
+                <td style="font-weight:600;font-size:12px">
+                  {{ a.trabajadorNombre.split(' ').slice(0,3).join(' ') }}
+                </td>
+                <td style="font-family:var(--mono);font-size:11px;color:var(--txt2)">{{ a.dni }}</td>
+                <td style="font-family:var(--mono);font-size:11px">
+                  {{ a.fecha | date:'dd/MM/yyyy' }}
+                </td>
+                <td>
+                  <span class="aus-tipo-badge"
+                        [style.background]="tipoColor(a.tipoAusencia) + '1a'"
+                        [style.color]="tipoColor(a.tipoAusencia)"
+                        [style.border-color]="tipoColor(a.tipoAusencia) + '40'">
+                    {{ tipoLabel(a.tipoAusencia) }}
+                  </span>
+                </td>
+                <td style="text-align:right">
+                  <button class="btn-icon" style="color:var(--red)"
+                    [disabled]="deletingId() === a.id"
+                    (click)="deleteAusencia(a)"
+                    title="Eliminar ausencia">
+                    {{ deletingId() === a.id ? '…' : '✕' }}
+                  </button>
+                </td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+      </div><!-- /tbl-wrap -->
+    </div>
+
+    @if (listTotalPaginas() > 1) {
+      <div class="aus-pag-bar">
+        <button class="btn btn-sm" [disabled]="listPagina() === 0" (click)="listPagina.set(listPagina() - 1)">‹ Ant.</button>
+        <span style="font-size:11px;color:var(--txt2)">
+          {{ listPagina() + 1 }} / {{ listTotalPaginas() }} · {{ filteredAusencias().length }} registros
+        </span>
+        <button class="btn btn-sm" [disabled]="listPagina() === listTotalPaginas() - 1" (click)="listPagina.set(listPagina() + 1)">Sig. ›</button>
+      </div>
+    } @else {
+      <div style="font-size:10px;color:var(--txt3);padding:8px 0 0;font-family:var(--mono)">
+        {{ filteredAusencias().length }} registro{{ filteredAusencias().length !== 1 ? 's' : '' }}
+      </div>
+    }
+
+  </div>
+
+</div>
+
+<!-- OVERLAY -->
+<div class="overlay" [class.open]="drawerOpen()" (click)="closeDrawer()"></div>
+
+<!-- DRAWER -->
+<div class="drawer" [class.open]="drawerOpen()">
+  <div class="drawer-hdr">
+    <span class="drawer-title">Nueva ausencia</span>
+    <button class="btn-icon" (click)="closeDrawer()">✕</button>
+  </div>
+
+  <div class="drawer-body">
+
+    <!-- Tipo de ausencia -->
+    <div class="fld">
+      <div class="fld-lbl">Tipo de ausencia</div>
+      <div class="tipo-grid">
+        @for (t of TIPOS; track t.key) {
+          <div class="tipo-opt" [class.sel]="tipoSeleccionado() === t.key"
+               (click)="tipoSeleccionado.set(t.key)"
+               [style.--dot]="t.color">
+            <div class="tipo-dot"></div>
+            <div>
+              <div style="font-size:12px;font-weight:700;font-family:var(--mono)">{{ t.label }}</div>
+              <div style="font-size:10px;color:var(--txt2)">{{ t.sub }}</div>
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Trabajador -->
+    <div class="fld">
+      <label class="fld-lbl">Trabajador</label>
+      <div class="srch-sel">
+        <input class="inp" type="text" placeholder="Escribe nombre o DNI para buscar..."
+          [ngModel]="searchQuery()"
+          (ngModelChange)="searchQuery.set($event); dropOpen.set(true)"
+          (blur)="closeDrop()" />
+        @if (selectedTrabajador()) {
+          <span class="srch-sel-tag">
+            {{ selectedTrabajador()!.name.split(' ').slice(0,2).join(' ') }}
+            <span style="font-size:9px;opacity:.7;font-family:var(--mono)"> · {{ selectedTrabajador()!.tipo }}</span>
+            <button (mousedown)="clearTrabajador()">✕</button>
+          </span>
+        }
+        @if (dropOpen() && filteredTrabajadores().length) {
+          <div class="srch-drop">
+            @for (w of filteredTrabajadores(); track w.id) {
+              <div class="srch-opt" (mousedown)="selectTrabajador(w)">
+                <span>{{ w.name }}</span>
+                <span class="srch-opt-meta">{{ w.dni }} · <span [class]="'tipo-tag tipo-' + w.tipo">{{ w.tipo }}</span></span>
+              </div>
+            }
+          </div>
+        }
+      </div>
+    </div>
+
+    <!-- Fechas -->
+    <div class="form-row">
+      <div class="fld">
+        <label class="fld-lbl">Fecha inicio</label>
+        <input type="date" class="inp" [ngModel]="fechaInicio()" (ngModelChange)="fechaInicio.set($event)" />
+      </div>
+      <div class="fld">
+        <label class="fld-lbl">Fecha fin</label>
+        <input type="date" class="inp" [ngModel]="fechaFin()" (ngModelChange)="fechaFin.set($event)" />
+      </div>
+    </div>
+
+    <!-- Resumen -->
+    @if (selectedTrabajador() && diasCalculados() > 0) {
+      <div class="aus-preview" [style.border-color]="getTipoInfo(tipoSeleccionado()).color">
+        <div style="font-size:11px;color:var(--txt2)">Se registrará:</div>
+        <div style="font-size:13px;font-weight:600;margin-top:4px">
+          {{ getTipoInfo(tipoSeleccionado()).label }}
+        </div>
+        <div style="font-size:12px;color:var(--txt2);margin-top:2px">
+          {{ selectedTrabajador()!.name.split(' ').slice(0,2).join(' ') }} ·
+          {{ fechaInicio() | date:'dd/MM/yyyy' }} → {{ fechaFin() | date:'dd/MM/yyyy' }}
+        </div>
+        <div style="font-size:11px;font-family:var(--mono);margin-top:6px;color:var(--txt3)">
+          {{ diasCalculados() }} día{{ diasCalculados() !== 1 ? 's' : '' }} (incluye fines de semana)
+        </div>
+      </div>
+    }
+
+  </div>
+
+  <div class="drawer-ftr">
+    <button class="btn btn-primary" [disabled]="saving() || !selectedTrabajador()" (click)="save()">
+      {{ saving() ? 'Guardando...' : 'Registrar ausencia' }}
+    </button>
+    <button class="btn" (click)="closeDrawer()">Cancelar</button>
+  </div>
+</div>

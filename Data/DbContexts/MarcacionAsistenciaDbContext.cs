@@ -123,7 +123,7 @@ namespace Asistencia.Data.DbContexts
                 entity.Property(e => e.IdArea).HasColumnName("id_area");
                 entity.Property(e => e.FechaIngreso).HasColumnName("fecha_ingreso");
                 entity.Property(e => e.FechaBaja).HasColumnName("fecha_baja");
-                entity.Property(e => e.IdEstado).HasColumnName("id_estado").IsRequired().HasDefaultValue(1);
+                entity.Property(e => e.IdEstado).HasColumnName("id_estado").IsRequired().HasDefaultValue(10);
                 entity.Property(e => e.SueldoBruto).HasColumnName("sueldo_bruto").HasColumnType("decimal(10, 2)");
                 entity.Property(e => e.CorreoCorporativo).HasColumnName("correo_corporativo").HasMaxLength(100);
                 entity.Property(e => e.TelefonoCorporativo).HasColumnName("telefono_corporativo").HasMaxLength(20);
@@ -270,11 +270,15 @@ namespace Asistencia.Data.DbContexts
                 entity.Property(e => e.Longitud).HasColumnName("longitud").HasColumnType("decimal(11, 8)");
                 entity.Property(e => e.FotoUrl).HasColumnName("foto_url").HasMaxLength(255);
                 entity.Property(e => e.UbicacionValida).HasColumnName("ubicacion_valida");
+                entity.Property(e => e.SucursalId).HasColumnName("id_sucursal");
+                entity.Property(e => e.SucursalMarcacionId).HasColumnName("id_sucursal_marcacion");
 
                 // TokenValidacion no se usa por ahora, ignorar en mapeador
                 entity.Ignore(e => e.TokenValidacion);
 
                 entity.HasOne(d => d.Trabajador).WithMany().HasForeignKey(d => d.TrabajadorId);
+                entity.HasOne(d => d.Sucursal).WithMany().HasForeignKey(d => d.SucursalId).OnDelete(DeleteBehavior.NoAction);
+                entity.HasOne(d => d.SucursalMarcacion).WithMany().HasForeignKey(d => d.SucursalMarcacionId).OnDelete(DeleteBehavior.NoAction);
             });
 
             // SolicitudHorasExtra
@@ -420,7 +424,7 @@ namespace Asistencia.Data.DbContexts
                 entity.Property(e => e.FechaInicio).HasColumnName("fecha_inicio").IsRequired();
                 entity.Property(e => e.FechaFin).HasColumnName("fecha_fin");
                 entity.HasIndex(e => new { e.TrabajadorId, e.SucursalId }).IsUnique();
-                entity.HasOne(d => d.Trabajador).WithMany().HasForeignKey(d => d.TrabajadorId);
+                entity.HasOne(d => d.Trabajador).WithMany(p => p.TrabajadorSucursales).HasForeignKey(d => d.TrabajadorId);
                 entity.HasOne(d => d.Sucursal).WithMany().HasForeignKey(d => d.SucursalId).OnDelete(DeleteBehavior.NoAction);
             });
 
@@ -432,7 +436,7 @@ namespace Asistencia.Data.DbContexts
                 entity.Property(e => e.Id).HasColumnName("id");
                 entity.Property(e => e.TrabajadorId).HasColumnName("id_trabajador").IsRequired();
                 entity.Property(e => e.Fecha).HasColumnName("fecha").IsRequired();
-                entity.Property(e => e.IdHorarioTurno).HasColumnName("id_horario_turno").IsRequired();
+                entity.Property(e => e.IdHorarioTurno).HasColumnName("id_horario_turno").IsRequired(false);
                 entity.Property(e => e.EsDescanso).HasColumnName("es_descanso").HasDefaultValue(false);
                 entity.Property(e => e.EsDiaBoleta).HasColumnName("es_dia_boleta").HasDefaultValue(false);
                 entity.Property(e => e.EsVacaciones).HasColumnName("es_vacaciones").HasDefaultValue(false);
@@ -442,6 +446,7 @@ namespace Asistencia.Data.DbContexts
                 entity.HasIndex(e => new { e.TrabajadorId, e.Fecha }).IsUnique();
                 entity.HasOne(d => d.Trabajador).WithMany().HasForeignKey(d => d.TrabajadorId);
                 entity.HasOne(d => d.HorarioTurno).WithMany().HasForeignKey(d => d.IdHorarioTurno)
+                    .IsRequired(false)
                     .OnDelete(DeleteBehavior.NoAction);
             });
 

@@ -24,6 +24,10 @@ namespace Asistencia.Services.Services
 
         public async Task<HorarioTurno> AddAsync(HorarioTurnoRequest horarioTurno)
         {
+            var turnoExiste = await _context.Turnos.AnyAsync(t => t.Id == horarioTurno.TurnoId);
+            if (!turnoExiste)
+                throw new KeyNotFoundException($"Turno con ID {horarioTurno.TurnoId} no encontrado.");
+
             var request = new HorarioTurno
             {
                 NombreHorario = horarioTurno.NombreHorario,
@@ -60,7 +64,7 @@ namespace Asistencia.Services.Services
                 throw new KeyNotFoundException($"Horario turno no encontrado");
             }
 
-            existingHorarioTurno.Turno = request.Turno;
+            existingHorarioTurno.TurnoId = request.TurnoId;
             existingHorarioTurno.NombreHorario = request.NombreHorario;
             existingHorarioTurno.EsActivo = request.EsActivo;
 

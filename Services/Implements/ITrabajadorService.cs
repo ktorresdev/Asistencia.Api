@@ -35,5 +35,34 @@ namespace Asistencia.Services.Implements
         public bool HorasExtraConf { get; set; }
         public bool BonoNocturnoRs { get; set; }
         public bool MarcajeEnZona { get; set; }
+        public bool TomarFoto { get; set; } = true;
+    }
+
+    public class CrearTrabajadorCompletoDto
+    {
+        // Persona
+        public required string Dni { get; set; }
+        public required string ApellidosNombres { get; set; }
+        public string? Email { get; set; }
+        public string? Telefono { get; set; }
+
+        // Usuario
+        public required string Username { get; set; }
+        public required string Password { get; set; }
+        public string Role { get; set; } = "TRABAJADOR";
+
+        // Trabajador
+        public int? SucursalId { get; set; }
+        public string? Cargo { get; set; }
+        public string? AreaDepartamento { get; set; }
+        public int? JefeInmediatoId { get; set; }
+        public bool MarcajeEnZona { get; set; }
+        public bool TomarFoto { get; set; } = true;
+        public DateTime? FechaIngreso { get; set; }
+
+        // Turno (opcional)
+        public int? TurnoId { get; set; }
+        public int? HorarioTurnoId { get; set; }
+        public DateOnly? FechaInicioVigencia { get; set; }
     }
 }

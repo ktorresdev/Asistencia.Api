@@ -13,8 +13,6 @@ var builder = WebApplication.CreateBuilder(args);
 // DbContext (SQL Server ejemplo, cambia la cadena seg�n tu entorno)
 builder.Services.AddDbContext<MarcacionAsistenciaDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("RrhhConnection")));
-
-builder.Services.AddDbContext<MarcacionAsistenciaDbContext>(options => options.UseSqlServer(builder.Configuration.GetConnectionString("RrhhConnection")));
 builder.Services.AddScoped<IMarcacionAsistenciaService, MarcacionAsistenciaService>();
 builder.Services.AddScoped<ISucursalCentroService, SucursalCentroService>();
 builder.Services.AddScoped<ITrabajadorService, TrabajadorService>();
@@ -32,7 +30,6 @@ builder.Services.AddScoped<ICoberturaTurnoService, CoberturaTurnoService>();
 builder.Services.AddScoped<IProgramacionDescansoService, ProgramacionDescansoService>();
 builder.Services.AddScoped<INotificacionService, NotificacionService>();
 builder.Services.AddHttpContextAccessor();
-builder.Services.AddHttpContextAccessor();
 builder.Services.AddSingleton<ICierreDiarioAsistenciaExecutor, CierreDiarioAsistenciaExecutor>();
 builder.Services.AddHostedService<CierreDiarioAsistenciaJob>();
 
@@ -43,10 +40,16 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy(MyAllowSpecificOrigins, policy =>
     {
-        policy.AllowAnyOrigin()
+        policy.WithOrigins(
+                "http://localhost:65344",
+                "https://localhost:65344",
+                "http://localhost:4200",
+                "https://localhost:4200",
+                "https://apirrhh.energigas.com",
+                "https://rrhh.energigas.com"
+            )
             .AllowAnyMethod()
             .AllowAnyHeader();
-            //.AllowCredentials(); // solo si usas cookies/credenciales*/
     });
 });
 
@@ -95,7 +98,13 @@ builder.Services.AddAuthentication(options =>
 .AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions, Asistencia.Api.AuthHandlers.ApiKeyAuthenticationHandler>("ApiKey", options => { });
 
 // Controllers y Swagger
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+        options.JsonSerializerOptions.DictionaryKeyPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+        options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+    });
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
@@ -128,9 +137,9 @@ var app = builder.Build();
 app.UseSwagger();
 app.UseSwaggerUI();
 
+app.UseCors(MyAllowSpecificOrigins);
 app.UseHttpsRedirection();
 app.UseStaticFiles();
-app.UseCors(MyAllowSpecificOrigins);
 
 app.UseAuthentication();
 app.UseAuthorization();

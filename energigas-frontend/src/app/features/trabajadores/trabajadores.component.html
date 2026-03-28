@@ -1,0 +1,455 @@
+<div style="display:contents">
+
+  <!-- TOOLBAR -->
+  <div class="toolbar">
+    <div class="srch-wrap">
+      <span class="srch-ico">⌕</span>
+      <input class="srch" type="text" placeholder="Buscar por nombre o DNI..." [ngModel]="searchQuery()" (ngModelChange)="searchQuery.set($event); onFilter()" />
+    </div>
+    <select class="sel" style="max-width:180px" [ngModel]="sedeFilter()" (ngModelChange)="sedeFilter.set($event); onFilter()">
+      <option value="">Todas las sedes</option>
+      @for (s of sedes(); track s.id) { <option [value]="s.id">{{ s.nombreSucursal }}</option> }
+    </select>
+    <button class="pill" [class.on]="trabFil()==='ALL'" (click)="trabFil.set('ALL'); onFilter()">TODOS</button>
+    <button class="pill" [class.on]="trabFil()==='ROT'" (click)="trabFil.set('ROT'); onFilter()">ROT</button>
+    <button class="pill" [class.on]="trabFil()==='FIJ'" (click)="trabFil.set('FIJ'); onFilter()">FIJ</button>
+    <span style="flex:1"></span>
+    @if (auth.isAdmin()) {
+      <button class="btn btn-primary btn-sm" (click)="openNewWorker()">+ Nuevo trabajador</button>
+    }
+    @if (loading()) { <span class="spin"></span> }
+  </div>
+
+  <!-- TABLE -->
+  <div class="grid-outer">
+    <div class="tbl-wrap">
+    <table class="tbl">
+      <thead>
+        <tr>
+          <th>Nombre</th>
+          <th>DNI</th>
+          <th>Tipo</th>
+          <th>Horario base</th>
+          <th>Sede</th>
+          <th>Estado</th>
+          @if (auth.isAdmin()) { <th>Acciones</th> }
+        </tr>
+      </thead>
+      <tbody>
+        @if (loading()) {
+          <tr class="load-row"><td colspan="7"><span class="spin"></span></td></tr>
+        } @else if (!bySede().length) {
+          <tr class="load-row"><td colspan="7">Sin resultados</td></tr>
+        } @else {
+          @for (entry of bySede(); track entry[0]) {
+            <tr>
+              <td colspan="7" style="background:var(--surf2);font-size:10px;font-family:var(--mono);color:var(--txt2);padding:5px 13px;letter-spacing:.08em;font-weight:600;border-bottom:1px solid var(--brd)">
+                📍 {{ entry[0] }} · {{ entry[1].length }} personas
+              </td>
+            </tr>
+            @for (w of entry[1]; track w.id) {
+              <tr>
+                <td style="font-weight:600">{{ w.apellidosNombres }}</td>
+                <td style="font-family:var(--mono);font-size:11px;color:var(--txt2)">{{ w.dni }}</td>
+                <td><span class="tipo-tag" [class]="getTipoClass(w)">{{ getTipoLabel(w) }}</span></td>
+                <td style="font-family:var(--mono);font-size:11px">
+                  <span style="color:var(--acc)">id_ht={{ w.idHorarioTurno ?? '?' }}</span>
+                  · {{ getHtName(w.idHorarioTurno) }}
+                </td>
+                <td><span class="w-sede">{{ getSedeName(w.sucursalId) }}</span></td>
+                <td>
+                  <span class="ec" [class]="isActivo(w) ? 'ec-ok' : 'ec-err'">
+                    {{ isActivo(w) ? 'ACTIVO' : 'CESADO' }}
+                  </span>
+                </td>
+                @if (auth.isAdmin()) {
+                  <td style="display:flex;gap:4px">
+                    <button class="btn btn-sm" (click)="openEdit(w)">Editar</button>
+                    @if (isActivo(w)) {
+                      <button class="btn btn-sm btn-danger" (click)="darDeBaja(w.id)">Dar baja</button>
+                    } @else {
+                      <button class="btn btn-sm" (click)="reactivar(w.id)">Reactivar</button>
+                    }
+                  </td>
+                }
+              </tr>
+            }
+          }
+        }
+      </tbody>
+    </table>
+    </div><!-- /tbl-wrap -->
+  </div>
+  <div class="pagination">
+    <button class="btn btn-sm" [disabled]="page() <= 1" (click)="goPage(page()-1)">&#8249;</button>
+    <span class="page-info">{{ page() }} / {{ totalPages() }} · {{ totalCount() }} trabajadores</span>
+    <button class="btn btn-sm" [disabled]="page() >= totalPages()" (click)="goPage(page()+1)">&#8250;</button>
+  </div>
+</div>
+
+<!-- OVERLAY -->
+<div class="overlay" [class.open]="drawerOpen()" (click)="closeDrawer()"></div>
+
+<!-- DRAWER -->
+<div class="drawer" style="width:480px" [class.open]="drawerOpen()">
+  <div class="drawer-hdr">
+    <div style="flex:1;display:flex;flex-direction:column">
+      <span class="drawer-title" style="font-size:15px">
+        {{ editingId() ? 'Ficha de Trabajador' : 'Nuevo Trabajador' }}
+      </span>
+      @if (editingId()) {
+        <span style="font-size:11px;color:var(--txt3);font-family:var(--mono);margin-top:2px;letter-spacing:.02em">
+          {{ personaForm().apellidosNombres }} · {{ personaForm().dni }}
+        </span>
+      } @else {
+        <span style="font-size:11px;color:var(--txt3);margin-top:2px">Completa los 4 pasos para registrar al personal.</span>
+      }
+    </div>
+    <button class="btn-icon" style="width:28px;height:28px;font-size:12px" (click)="closeDrawer()">✕</button>
+  </div>
+
+  <!-- ══ NUEVO: wizard 4 pasos ══ -->
+  @if (!editingId()) {
+    <div class="wiz-steps">
+      <div class="wiz-step" [class.active]="wizardStep()===1" [class.done]="wizardStep()>1">1. Persona</div>
+      <div class="wiz-step" [class.active]="wizardStep()===2" [class.done]="wizardStep()>2">2. Usuario</div>
+      <div class="wiz-step" [class.active]="wizardStep()===3" [class.done]="wizardStep()>3">3. Laboral</div>
+      <div class="wiz-step" [class.active]="wizardStep()===4" [class.done]="wizardStep()>4">4. Turno</div>
+    </div>
+
+    @if (wizardStep() === 1) {
+      <div class="drawer-body">
+        <div style="margin-bottom:8px">
+          <div style="font-size:14px;font-weight:700;color:var(--txt)">Información Personal</div>
+          <p style="font-size:11px;color:var(--txt3);margin-top:2px">Datos básicos de identificación del trabajador.</p>
+        </div>
+        <div class="fld">
+          <label class="fld-lbl">DNI / Documento *</label>
+          <input class="inp" type="text" [ngModel]="personaForm().dni" (ngModelChange)="personaForm.update(f=>({...f,dni:$event}))" placeholder="8 dígitos" />
+        </div>
+        <div class="fld">
+          <label class="fld-lbl">Apellidos y nombres *</label>
+          <input class="inp" type="text" [ngModel]="personaForm().apellidosNombres" (ngModelChange)="personaForm.update(f=>({...f,apellidosNombres:$event}))" placeholder="Ej: PEREZ SOSA, JUAN" />
+        </div>
+        <div class="form-row">
+          <div class="fld">
+            <label class="fld-lbl">Teléfono</label>
+            <input class="inp" type="text" [ngModel]="personaForm().telefono" (ngModelChange)="personaForm.update(f=>({...f,telefono:$event}))" />
+          </div>
+          <div class="fld">
+            <label class="fld-lbl">Email</label>
+            <input class="inp" type="email" [ngModel]="personaForm().email" (ngModelChange)="personaForm.update(f=>({...f,email:$event}))" />
+          </div>
+        </div>
+      </div>
+      <div class="drawer-ftr">
+        <button class="btn btn-primary" style="flex:1" (click)="saveStep1()">Siguiente →</button>
+      </div>
+    }
+
+    @if (wizardStep() === 2) {
+      <div class="drawer-body">
+        <div style="margin-bottom:8px">
+          <div style="font-size:14px;font-weight:700;color:var(--txt)">Cuenta de Acceso</div>
+          <p style="font-size:11px;color:var(--txt3);margin-top:2px">Configura las credenciales para el ingreso al sistema.</p>
+        </div>
+        <div class="fld">
+          <label class="fld-lbl">Nombre de usuario *</label>
+          <input class="inp" type="text" [ngModel]="usuarioForm().username" (ngModelChange)="usuarioForm.update(f=>({...f,username:$event}))" placeholder="usuario.apellido" autocomplete="off" />
+        </div>
+        <div class="fld">
+          <label class="fld-lbl">Contraseña * (mín. 6 caracteres)</label>
+          <input class="inp" type="password" [ngModel]="usuarioForm().password" (ngModelChange)="usuarioForm.update(f=>({...f,password:$event}))" autocomplete="new-password" />
+        </div>
+        <div class="fld">
+          <label class="fld-lbl">Rol asignado</label>
+          <select class="sel" [ngModel]="usuarioForm().role" (ngModelChange)="usuarioForm.update(f=>({...f,role:$event}))">
+            <option value="TRABAJADOR">Trabajador</option>
+            <option value="ADMIN">Administrador</option>
+          </select>
+        </div>
+        <div class="info-box">
+          Este usuario permitirá al trabajador registrar su asistencia y ver sus reportes.
+        </div>
+      </div>
+      <div class="drawer-ftr">
+        <button class="btn" (click)="wizardStep.set(1)">Atrás</button>
+        <button class="btn btn-primary" style="flex:1" (click)="saveStep2()">Siguiente →</button>
+      </div>
+    }
+
+    @if (wizardStep() === 3) {
+      <div class="drawer-body">
+        <div style="margin-bottom:8px">
+          <div style="font-size:14px;font-weight:700;color:var(--txt)">Detalle Laboral</div>
+          <p style="font-size:11px;color:var(--txt3);margin-top:2px">Define la relación oficial con la empresa.</p>
+        </div>
+        <div class="fld">
+          <label class="fld-lbl">Sede principal *</label>
+          <select class="sel" [ngModel]="trabForm().sucursalId" (ngModelChange)="trabForm.update(f=>({...f,sucursalId:+$event}))">
+            @for (s of sedes(); track s.id) { <option [value]="s.id">{{ s.nombreSucursal }}</option> }
+          </select>
+        </div>
+        <div class="form-row">
+          <div class="fld">
+            <label class="fld-lbl">Cargo / Puesto</label>
+            <input class="inp" type="text" [ngModel]="trabForm().cargo" (ngModelChange)="trabForm.update(f=>({...f,cargo:$event}))" placeholder="Ej: Operador" />
+          </div>
+          <div class="fld">
+            <label class="fld-lbl">Área / Departamento</label>
+            <input class="inp" type="text" [ngModel]="trabForm().areaDepartamento" (ngModelChange)="trabForm.update(f=>({...f,areaDepartamento:$event}))" placeholder="Ej: Almacén" />
+          </div>
+        </div>
+        <div class="fld">
+          <label class="fld-lbl">Fecha de ingreso</label>
+          <input class="inp" type="date" [ngModel]="trabForm().fechaIngreso" (ngModelChange)="trabForm.update(f=>({...f,fechaIngreso:$event}))" />
+        </div>
+        <div class="fld" style="flex-direction:row;align-items:center;gap:8px;padding:4px 0">
+          <input type="checkbox" id="foto-check" [ngModel]="trabForm().tomarFoto" (ngModelChange)="trabForm.update(f=>({...f,tomarFoto:$event}))" />
+          <label for="foto-check" style="font-size:12px;cursor:pointer">Requerir foto al marcar</label>
+        </div>
+      </div>
+      <div class="drawer-ftr">
+        <button class="btn" (click)="wizardStep.set(2)">Atrás</button>
+        <button class="btn btn-primary" style="flex:1" (click)="saveStep3()">Siguiente →</button>
+      </div>
+    }
+
+    @if (wizardStep() === 4) {
+      <div class="drawer-body">
+        <div style="margin-bottom:8px">
+          <div style="font-size:14px;font-weight:700;color:var(--txt)">Asignación de Turno</div>
+          <p style="font-size:11px;color:var(--txt3);margin-top:2px">Configura el horario de asistencia permanente.</p>
+        </div>
+        <div class="fld">
+          <label class="fld-lbl">Turno *</label>
+          <select class="sel" [ngModel]="turnoForm().turnoId" (ngModelChange)="turnoForm.update(f=>({...f,turnoId:+$event,horarioTurnoId:null}))">
+            @for (t of turnos(); track t.id) { <option [value]="t.id">{{ t.nombreCodigo }}</option> }
+          </select>
+        </div>
+        @if (turnoForm().turnoId && !turnoEsRotativo(turnoForm().turnoId)) {
+          <div class="fld">
+            <label class="fld-lbl">Horario base *</label>
+            <select class="sel" [ngModel]="turnoForm().horarioTurnoId" (ngModelChange)="turnoForm.update(f=>({...f,horarioTurnoId:+$event}))">
+              <option [value]="null">— seleccionar —</option>
+              @for (h of getHtForTurno(turnoForm().turnoId); track h.id) {
+                <option [value]="h.id">{{ h.nombreHorario }}</option>
+              }
+            </select>
+          </div>
+        }
+        <div class="fld">
+          <label class="fld-lbl">Fecha inicio vigencia *</label>
+          <input class="inp" type="date" [ngModel]="turnoForm().fechaInicioVigencia" (ngModelChange)="turnoForm.update(f=>({...f,fechaInicioVigencia:$event}))" />
+        </div>
+        <div class="info-box">
+          {{ turnoEsRotativo(turnoForm().turnoId) ? 'Turno ROTATIVO: se programará semanalmente.' : 'Turno FIJO: el horario base aplicará automáticamente.' }}
+        </div>
+      </div>
+      <div class="drawer-ftr">
+        <button class="btn" (click)="wizardStep.set(3)">Atrás</button>
+        <button class="btn btn-primary" style="flex:1" [disabled]="loading()" (click)="saveStep4New()">
+          {{ loading() ? 'Creando...' : 'Crear Trabajador' }}
+        </button>
+      </div>
+    }
+  }
+
+  <!-- ══ EDITAR: panel con acordeón ══ -->
+  @if (editingId()) {
+    <div class="drawer-body">
+
+      <!-- 1. Usuario (Solo lectura) -->
+      @if (auth.isAdmin()) {
+        <div style="padding:14px 16px;background:var(--acc-bg);border:1px solid rgba(79,142,247,.2);border-radius:12px;display:flex;align-items:center;gap:12px;margin-bottom:8px">
+          <div style="background:var(--acc);color:#fff;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px">
+            {{ (trabajadores().find(t => t.id === editingId())?.username ?? 'U').charAt(0).toUpperCase() }}
+          </div>
+          <div style="flex:1">
+            <div style="font-size:10px;font-weight:700;color:var(--acc);text-transform:uppercase;letter-spacing:.05em">Usuario del sistema</div>
+            <div style="font-size:13px;font-weight:700;color:var(--txt)">
+              {{ trabajadores().find(t => t.id === editingId())?.username ?? 'Sin usuario' }}
+            </div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:9px;color:var(--txt3);font-family:var(--mono)">ID USUARIO</div>
+            <div style="font-size:11px;font-weight:600;color:var(--txt2)">#{{ trabajadores().find(t => t.id === editingId())?.userId ?? '—' }}</div>
+          </div>
+        </div>
+      }
+
+      <!-- 2. Datos personales -->
+      <div class="acc-item" [class.open]="editSection() === 'persona'">
+        <div class="acc-hdr" (click)="toggleSection('persona')">
+          <div class="acc-title">
+            <span class="acc-main-lbl">Información personal</span>
+            <span class="acc-sub-lbl" style="font-family:var(--sans);opacity:.7">{{ personaForm().apellidosNombres }} · {{ personaForm().dni }}</span>
+          </div>
+          <span class="acc-icon">▼</span>
+        </div>
+        @if (editSection() === 'persona') {
+          <div class="acc-body">
+            <div class="fld">
+              <label class="fld-lbl">DNI / Documento *</label>
+              <input class="inp" type="text" [ngModel]="personaForm().dni" (ngModelChange)="personaForm.update(f=>({...f,dni:$event}))" placeholder="8 dígitos" />
+            </div>
+            <div class="fld">
+              <label class="fld-lbl">Apellidos y nombres *</label>
+              <input class="inp" type="text" [ngModel]="personaForm().apellidosNombres" (ngModelChange)="personaForm.update(f=>({...f,apellidosNombres:$event}))" placeholder="Ej: PEREZ SOSA, JUAN" />
+            </div>
+            <div class="form-row">
+              <div class="fld">
+                <label class="fld-lbl">Teléfono</label>
+                <input class="inp" type="text" [ngModel]="personaForm().telefono" (ngModelChange)="personaForm.update(f=>({...f,telefono:$event}))" />
+              </div>
+              <div class="fld">
+                <label class="fld-lbl">Email</label>
+                <input class="inp" type="email" [ngModel]="personaForm().email" (ngModelChange)="personaForm.update(f=>({...f,email:$event}))" />
+              </div>
+            </div>
+            <button class="btn btn-primary btn-sm" style="width:100%" (click)="savePersonaEdit()">Actualizar datos personales</button>
+          </div>
+        }
+      </div>
+
+      <!-- 3. Datos laborales -->
+      <div class="acc-item" [class.open]="editSection() === 'trabajador'">
+        <div class="acc-hdr" (click)="toggleSection('trabajador')">
+          <div class="acc-title">
+            <span class="acc-main-lbl">Gestión de sede y estado</span>
+            <span class="acc-sub-lbl">{{ getSedeName(trabForm().sucursalId) }} · {{ trabForm().idEstado === 10 ? 'Activo' : 'Cesado' }}</span>
+          </div>
+          <span class="acc-icon">▼</span>
+        </div>
+        @if (editSection() === 'trabajador') {
+          <div class="acc-body">
+            <div class="fld">
+              <label class="fld-lbl">Sede principal *</label>
+              <select class="sel" [ngModel]="trabForm().sucursalId" (ngModelChange)="trabForm.update(f=>({...f,sucursalId:+$event}))">
+                @for (s of sedes(); track s.id) { <option [value]="s.id">{{ s.nombreSucursal }}</option> }
+              </select>
+            </div>
+            <div class="fld">
+              <label class="fld-lbl">Estado operativo</label>
+              <select class="sel" [ngModel]="trabForm().idEstado" (ngModelChange)="trabForm.update(f=>({...f,idEstado:+$event}))">
+                <option [value]="10">Activo (Habilitado para marcar)</option>
+                <option [value]="11">Cesado (Inhabilitado)</option>
+              </select>
+            </div>
+            <button class="btn btn-primary btn-sm" style="width:100%" (click)="saveTrabajadorEdit()">Guardar cambios laborales</button>
+          </div>
+        }
+      </div>
+
+      <!-- 4. Turno vigente -->
+      <div class="acc-item" [class.open]="editSection() === 'turno'">
+        <div class="acc-hdr" (click)="toggleSection('turno')">
+          <div class="acc-title">
+            <span class="acc-main-lbl">Turno y vigencia</span>
+            <span class="acc-sub-lbl">
+              @if (turnoForm().turnoId) { {{ getTurnoName(turnoForm().turnoId) }} · {{ getHtName(turnoForm().horarioTurnoId ?? undefined) }} }
+              @else { Sin turno asignado }
+            </span>
+          </div>
+          <span class="acc-icon">▼</span>
+        </div>
+        @if (editSection() === 'turno') {
+          <div class="acc-body">
+            <div class="form-row">
+              <div class="fld">
+                <label class="fld-lbl">Turno *</label>
+                <select class="sel" [ngModel]="turnoForm().turnoId" (ngModelChange)="turnoForm.update(f=>({...f,turnoId:+$event,horarioTurnoId:null}))">
+                  @for (t of turnos(); track t.id) { <option [value]="t.id">{{ t.nombreCodigo }}</option> }
+                </select>
+              </div>
+              @if (turnoForm().turnoId && !turnoEsRotativo(turnoForm().turnoId)) {
+                <div class="fld">
+                  <label class="fld-lbl">Horario base *</label>
+                  <select class="sel" [ngModel]="turnoForm().horarioTurnoId" (ngModelChange)="turnoForm.update(f=>({...f,horarioTurnoId:+$event}))">
+                    <option [value]="null">— seleccionar —</option>
+                    @for (h of getHtForTurno(turnoForm().turnoId); track h.id) {
+                      <option [value]="h.id">{{ h.nombreHorario }}</option>
+                    }
+                  </select>
+                </div>
+              }
+            </div>
+            <div class="fld">
+              <label class="fld-lbl">Fecha inicio vigencia *</label>
+              <input type="date" class="inp" [ngModel]="turnoForm().fechaInicioVigencia" (ngModelChange)="turnoForm.update(f=>({...f,fechaInicioVigencia:$event}))" />
+            </div>
+            <div class="fld">
+              <label class="fld-lbl">Motivo del cambio</label>
+              <input class="inp" type="text" [ngModel]="turnoForm().motivoCambio" (ngModelChange)="turnoForm.update(f=>({...f,motivoCambio:$event}))" placeholder="Ej: Cambio de área o responsabilidad" />
+            </div>
+            <div class="info-box">
+              {{ turnoEsRotativo(turnoForm().turnoId) ? 'Turno ROTATIVO: el horario se define en Programación Semanal.' : 'Turno FIJO: el horario base aplica automáticamente.' }}
+            </div>
+            <button class="btn btn-primary btn-sm" style="width:100%" (click)="saveTurnoEdit()">Programar nuevo turno</button>
+          </div>
+        }
+      </div>
+
+      <!-- 5. Sedes adicionales -->
+      <div class="acc-item" [class.open]="editSection() === 'sedes'">
+        <div class="acc-hdr" (click)="toggleSection('sedes')">
+          <div class="acc-title">
+            <span class="acc-main-lbl">Sedes adicionales</span>
+            <span class="acc-sub-lbl">{{ sedesAsignadas().length ? sedesAsignadas().length + ' sedes activas' : 'Sin sedes adicionales' }}</span>
+          </div>
+          <span class="acc-icon">▼</span>
+        </div>
+        @if (editSection() === 'sedes') {
+          <div class="acc-body" style="gap:12px">
+            @for (s of sedesAsignadas(); track s.sucursalId) {
+              <div style="display:flex;align-items:center;gap:8px;padding:9px 12px;background:var(--surf2);border-radius:10px;border:1px solid var(--brd)">
+                <div style="flex:1">
+                  <div style="font-size:12px;font-weight:600">{{ s.nombreSucursal }}</div>
+                  <div style="font-size:10px;color:var(--txt3);font-family:var(--mono)">
+                    {{ s.fechaInicio }} → {{ s.fechaFin ?? '∞' }}
+                    <span style="margin-left:5px;opacity:.7">@if (s.puedeGestionar) { · gestiona } @if (s.esPrincipal) { · (principal) }</span>
+                  </div>
+                </div>
+                @if (!s.esPrincipal) {
+                  <button class="btn-icon" style="width:24px;height:24px;font-size:10px" title="Eliminar asignación" (click)="removeSede(s.sucursalId)">✕</button>
+                }
+              </div>
+            }
+
+            <div style="border-top:1px solid var(--brd);padding-top:14px;margin-top:4px">
+              <div style="font-size:11px;font-weight:700;color:var(--txt2);margin-bottom:10px;text-transform:uppercase;letter-spacing:.03em">Asignar nueva sede</div>
+              
+              <div class="fld" style="margin-bottom:12px">
+                <label class="fld-lbl">Sede a asignar</label>
+                <select class="sel" [ngModel]="sedeForm().sucursalId" (ngModelChange)="sedeForm.update(f=>({...f,sucursalId:+$event}))">
+                  @for (s of sedes(); track s.id) { <option [value]="s.id">{{ s.nombreSucursal }}</option> }
+                </select>
+              </div>
+              <div class="form-row" style="margin-bottom:12px">
+                <div class="fld">
+                  <label class="fld-lbl">Fecha inicio</label>
+                  <input type="date" class="inp" [ngModel]="sedeForm().fechaInicio" (ngModelChange)="sedeForm.update(f=>({...f,fechaInicio:$event}))" />
+                </div>
+                <div class="fld">
+                  <label class="fld-lbl">Fecha fin (opcional)</label>
+                  <input type="date" class="inp" [ngModel]="sedeForm().fechaFin" (ngModelChange)="sedeForm.update(f=>({...f,fechaFin:$event}))" />
+                </div>
+              </div>
+              <div class="fld" style="flex-direction:row;align-items:center;gap:8px;margin-bottom:12px;padding:4px 0">
+                <input type="checkbox" id="puedeGestionarE" [ngModel]="sedeForm().puedeGestionar" (ngModelChange)="sedeForm.update(f=>({...f,puedeGestionar:$event}))" />
+                <label for="puedeGestionarE" style="font-size:12px;cursor:pointer;user-select:none">Habilitar permisos de gestión en esta sede</label>
+              </div>
+              <button class="btn btn-primary btn-sm" style="width:100%" [disabled]="addingSedeLoading()" (click)="addSede()">
+                {{ addingSedeLoading() ? 'Guardando...' : '+ Asignar sede adicional' }}
+              </button>
+            </div>
+          </div>
+        }
+      </div>
+
+    </div>
+    <div class="drawer-ftr">
+      <button class="btn" style="width:100%" (click)="closeDrawer(); loadTrabajadores()">Cerrar edición</button>
+    </div>
+  }
+</div>

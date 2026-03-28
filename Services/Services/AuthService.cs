@@ -93,11 +93,13 @@ namespace Asistencia.Services.Services
 
             var normalizedRole = NormalizeRole(user.Role);
 
-            if (normalizedRole == "TRABAJADOR" || normalizedRole == "ADMIN")
+            if (normalizedRole == "TRABAJADOR" || normalizedRole == "ADMIN" || normalizedRole == "SUPERVISOR")
             {
                 var trabajadorData = await _db.Trabajadores
                     .Include(t => t.Persona)
                     .Include(t => t.Sucursal)
+                    .Include(t => t.TrabajadorSucursales!)
+                        .ThenInclude(ts => ts.Sucursal)
                     .FirstOrDefaultAsync(t => t.UserId == user.Id);
 
                 if (trabajadorData != null)
@@ -114,6 +116,38 @@ namespace Asistencia.Services.Services
                             trabajadorData.Sucursal.EsActivo
                         );
 
+                    // Construir lista de todas las sedes asignadas (solo para ADMIN/SUPERVISOR)
+                    IReadOnlyList<AuthSucursalDto>? sucursalesAsignadas = null;
+                    if (normalizedRole == "ADMIN" || normalizedRole == "SUPERVISOR")
+                    {
+                        var today = DateOnly.FromDateTime(DateTime.Today);
+                        var lista = new List<AuthSucursalDto>();
+
+                        if (sucursal != null)
+                            lista.Add(sucursal);
+
+                        if (trabajadorData.TrabajadorSucursales != null)
+                        {
+                            foreach (var ts in trabajadorData.TrabajadorSucursales
+                                .Where(ts => ts.Sucursal != null
+                                    && ts.SucursalId != trabajadorData.SucursalId
+                                    && ts.FechaInicio <= today
+                                    && (ts.FechaFin == null || ts.FechaFin.Value >= today)))
+                            {
+                                lista.Add(new AuthSucursalDto(
+                                    ts.Sucursal.Id,
+                                    ts.Sucursal.NombreSucursal,
+                                    ts.Sucursal.Direccion,
+                                    ts.Sucursal.LatitudCentro,
+                                    ts.Sucursal.LongitudCentro,
+                                    ts.Sucursal.PerimetroM,
+                                    ts.Sucursal.EsActivo));
+                            }
+                        }
+
+                        sucursalesAsignadas = lista.Count > 0 ? lista : null;
+                    }
+
                     trabajadorInfo = new AuthTrabajadorDto(
                         trabajadorData.Id,
                         trabajadorData.UserId ?? throw new InvalidOperationException("UserId es requerido para trabajador."),
@@ -122,7 +156,8 @@ namespace Asistencia.Services.Services
                         trabajadorData.AreaDepartamento,
                         trabajadorData.SucursalId,
                         trabajadorData.TomarFoto,
-                        sucursal
+                        sucursal,
+                        sucursalesAsignadas
                     );
 
                     trabajadorPersona = new AuthPersonaDto(
@@ -136,7 +171,7 @@ namespace Asistencia.Services.Services
                 }
             }
 
-            var accessToken = GenerateJwtToken(user, clientId, areaDepartamento);
+            var accessToken = GenerateJwtToken(user, clientId, areaDepartamento, trabajadorInfo?.Id);
             var refreshToken = GenerateRefreshToken();
 
             int refreshDays = 30;
@@ -189,15 +224,18 @@ namespace Asistencia.Services.Services
             string? areaDepartamento = null;
 
             var normalizedRole = NormalizeRole(user.Role);
-            if (normalizedRole == "ADMIN" || normalizedRole == "TRABAJADOR")
+            int? trabajadorIdRefresh = null;
+            if (normalizedRole == "ADMIN" || normalizedRole == "TRABAJADOR" || normalizedRole == "SUPERVISOR")
             {
-                areaDepartamento = await _db.Trabajadores
+                var trab = await _db.Trabajadores
                     .Where(t => t.UserId == user.Id)
-                    .Select(t => t.AreaDepartamento)
+                    .Select(t => new { t.Id, t.AreaDepartamento })
                     .FirstOrDefaultAsync();
+                areaDepartamento = trab?.AreaDepartamento;
+                trabajadorIdRefresh = trab?.Id;
             }
 
-            var accessToken = GenerateJwtToken(user, null, areaDepartamento);
+            var accessToken = GenerateJwtToken(user, null, areaDepartamento, trabajadorIdRefresh);
             var newRefreshToken = GenerateRefreshToken();
 
             int refreshDays = 30;
@@ -308,7 +346,7 @@ namespace Asistencia.Services.Services
         }
 
         // Helpers
-        private (string token, DateTime expiresAt) GenerateJwtToken(User user, string? clientId = null, string? area = null)
+        private (string token, DateTime expiresAt) GenerateJwtToken(User user, string? clientId = null, string? area = null, int? trabajadorId = null)
         {
             var jwtKey = _config["Jwt:Key"] ?? throw new InvalidOperationException("JWT Key is not configured.");
             var key = Encoding.UTF8.GetBytes(jwtKey);
@@ -332,15 +370,14 @@ namespace Asistencia.Services.Services
             };
 
             if (!string.IsNullOrEmpty(clientId))
-            {
                 claims.Add(new Claim("client", clientId));
-            }
 
-            // El area viaja en el token para forzar filtros sin depender del cliente.
-            if (normalizedRole == "ADMIN" && !string.IsNullOrWhiteSpace(area))
-            {
+            if (!string.IsNullOrWhiteSpace(area))
                 claims.Add(new Claim("area", area));
-            }
+
+            // trabajador_id viaja en el token para que los endpoints puedan filtrar sin DB extra.
+            if (trabajadorId.HasValue)
+                claims.Add(new Claim("trabajador_id", trabajadorId.Value.ToString()));
 
             var creds = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256);
 

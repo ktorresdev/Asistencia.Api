@@ -22,13 +22,14 @@ namespace Asistencia.Services.Dtos
         [Required]
         public DateOnly Fecha { get; set; }
 
-        [Required]
-        public int IdHorarioTurno { get; set; }
+        public int? IdHorarioTurno { get; set; }
 
         public bool EsDescanso { get; set; } = false;
 
         public bool EsDiaBoleta { get; set; } = false;
 
         public bool EsVacaciones { get; set; } = false;
+
+        public string? TipoAusencia { get; set; }
     }
 }

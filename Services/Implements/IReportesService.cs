@@ -17,11 +17,12 @@ namespace Asistencia.Services.Implements
 
         //nuevos reportes
         Task<IEnumerable<ReporteInconsistenciaDto>> GetInconsistenciasAsync(string? area = null);
-        Task<IEnumerable<ReporteAsistenciaDto>> GetResumenAsistenciaAsync(DateTime inicio, DateTime fin, string? dni, string? area);
+        Task<IEnumerable<ReporteAsistenciaDto>> GetResumenAsistenciaAsync(DateTime inicio, DateTime fin, string? dni, int? jefeId);
 
-        Task<IEnumerable<ReporteTardanzaDto>> GetTardanzasAsync(DateTime inicio, DateTime fin, string? area);
-        Task<IEnumerable<ReporteHorasExtrasDto>> GetHorasExtrasAsync(DateTime inicio, DateTime fin, string? area);
+        Task<IEnumerable<ReporteTardanzaDto>> GetTardanzasAsync(DateTime inicio, DateTime fin, int? jefeId);
+        Task<IEnumerable<ReporteHorasExtrasDto>> GetHorasExtrasAsync(DateTime inicio, DateTime fin, int? jefeId);
         Task<IEnumerable<ReporteTrabajadorJefeDto>> GetTrabajadoresPorJefeYFechaAsync(DateTime fecha, int jefeId, string? area = null);
+        Task<IEnumerable<ReporteTrabajadorJefeDto>> GetTrabajadoresPorSucursalAsync(DateTime fecha, int sucursalId);
 
     }
 
@@ -115,6 +116,7 @@ namespace Asistencia.Services.Implements
         public required string Nombre { get; set; }
         public required string Area { get; set; }
         public required string Fecha { get; set; }
+        public required string Estado { get; set; }
         public required string Hora_Turno { get; set; }
         public required string Hora_Marcacion { get; set; }
         public int Minutos_Late { get; set; }

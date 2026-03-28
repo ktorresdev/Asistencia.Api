@@ -2,7 +2,7 @@
 {
     public class PaginationDto
     {
-        private const int MaxPageSize = 50;
+        private const int MaxPageSize = 500;
         public int PageNumber { get; set; } = 1;
 
         private int _pageSize = 10;

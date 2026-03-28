@@ -339,16 +339,15 @@ namespace Asistencia.Services.Services
             }
         }
 
-        public async Task<IEnumerable<ReporteAsistenciaDto>> GetResumenAsistenciaAsync(DateTime inicio, DateTime fin, string? dni, string? area)
+        public async Task<IEnumerable<ReporteAsistenciaDto>> GetResumenAsistenciaAsync(DateTime inicio, DateTime fin, string? dni, int? jefeId)
         {
             using (var connection = new SqlConnection(_connectionString))
             {
                 var parameters = new DynamicParameters();
                 parameters.Add("@FechaInicio", inicio);
                 parameters.Add("@FechaFin", fin);
-                // Pasamos NULL si el string viene vacío o nulo
                 parameters.Add("@Dni", string.IsNullOrWhiteSpace(dni) ? null : dni);
-                parameters.Add("@Area", string.IsNullOrWhiteSpace(area) ? null : area);
+                parameters.Add("@JefeId", jefeId);
 
                 return await connection.QueryAsync<ReporteAsistenciaDto>(
                     "dbo.SP_REPORTE_ASISTENCIA_FILTRADO",
@@ -358,14 +357,14 @@ namespace Asistencia.Services.Services
             }
         }
 
-        public async Task<IEnumerable<ReporteTardanzaDto>> GetTardanzasAsync(DateTime inicio, DateTime fin, string? area)
+        public async Task<IEnumerable<ReporteTardanzaDto>> GetTardanzasAsync(DateTime inicio, DateTime fin, int? jefeId)
         {
             using (var connection = new SqlConnection(_connectionString))
             {
                 var parameters = new DynamicParameters();
                 parameters.Add("@FechaInicio", inicio);
                 parameters.Add("@FechaFin", fin);
-                parameters.Add("@Area", string.IsNullOrWhiteSpace(area) ? null : area);
+                parameters.Add("@JefeId", jefeId);
 
                 return await connection.QueryAsync<ReporteTardanzaDto>(
                     "dbo.SP_REPORTE_DETALLE_TARDANZAS",
@@ -375,14 +374,14 @@ namespace Asistencia.Services.Services
             }
         }
 
-        public async Task<IEnumerable<ReporteHorasExtrasDto>> GetHorasExtrasAsync(DateTime inicio, DateTime fin, string? area)
+        public async Task<IEnumerable<ReporteHorasExtrasDto>> GetHorasExtrasAsync(DateTime inicio, DateTime fin, int? jefeId)
         {
             using (var connection = new SqlConnection(_connectionString))
             {
                 var parameters = new DynamicParameters();
                 parameters.Add("@FechaInicio", inicio);
                 parameters.Add("@FechaFin", fin);
-                parameters.Add("@Area", string.IsNullOrWhiteSpace(area) ? null : area);
+                parameters.Add("@JefeId", jefeId);
 
                 return await connection.QueryAsync<ReporteHorasExtrasDto>(
                     "dbo.SP_REPORTE_DETALLE_HORAS_EXTRAS",
@@ -483,6 +482,81 @@ namespace Asistencia.Services.Services
                 {
                     estado = "Salida sin entrada";
                 }
+
+                resultado.Add(new ReporteTrabajadorJefeDto
+                {
+                    IdTrabajador = trabajador.Id,
+                    Nombre = trabajador.Nombre,
+                    Dni = trabajador.Dni,
+                    Entrada = horaEntrada?.ToString("HH:mm:ss"),
+                    Salida = horaSalida?.ToString("HH:mm:ss"),
+                    Estado = estado
+                });
+            }
+
+            return resultado;
+        }
+
+        public async Task<IEnumerable<ReporteTrabajadorJefeDto>> GetTrabajadoresPorSucursalAsync(DateTime fecha, int sucursalId)
+        {
+            var fechaDia = fecha.Date;
+            var fechaDiaFin = fechaDia.AddDays(1);
+
+            var trabajadores = await _context.Trabajadores
+                .AsNoTracking()
+                .Include(t => t.Persona)
+                .Where(t => t.SucursalId == sucursalId
+                    && (t.FechaIngreso == null || t.FechaIngreso.Value.Date <= fechaDia)
+                    && (t.FechaBaja == null || t.FechaBaja.Value.Date >= fechaDia)
+                    && t.IdEstado != 11)
+                .Select(t => new
+                {
+                    t.Id,
+                    Nombre = t.Persona.ApellidosNombres,
+                    Dni = t.Persona.Dni
+                })
+                .OrderBy(t => t.Nombre)
+                .ToListAsync();
+
+            if (!trabajadores.Any())
+                return Enumerable.Empty<ReporteTrabajadorJefeDto>();
+
+            var trabajadoresIds = trabajadores.Select(t => t.Id).ToList();
+
+            var marcaciones = await _context.MarcacionesAsistencia
+                .AsNoTracking()
+                .Where(m => trabajadoresIds.Contains(m.TrabajadorId)
+                    && m.FechaHora >= fechaDia
+                    && m.FechaHora < fechaDiaFin)
+                .Select(m => new { m.TrabajadorId, m.TipoMarcacion, m.FechaHora })
+                .ToListAsync();
+
+            var marcacionesPorTrabajador = marcaciones.ToLookup(m => m.TrabajadorId);
+            var resultado = new List<ReporteTrabajadorJefeDto>(trabajadores.Count);
+
+            foreach (var trabajador in trabajadores)
+            {
+                var marcasDelDia = marcacionesPorTrabajador[trabajador.Id];
+
+                var horaEntrada = marcasDelDia
+                    .Where(m => string.Equals(m.TipoMarcacion, "Entrada", StringComparison.OrdinalIgnoreCase))
+                    .OrderBy(m => m.FechaHora)
+                    .Select(m => (DateTime?)m.FechaHora)
+                    .FirstOrDefault();
+
+                var horaSalida = marcasDelDia
+                    .Where(m => string.Equals(m.TipoMarcacion, "Salida", StringComparison.OrdinalIgnoreCase))
+                    .OrderByDescending(m => m.FechaHora)
+                    .Select(m => (DateTime?)m.FechaHora)
+                    .FirstOrDefault();
+
+                var estado = "Sin marcación";
+                if (horaEntrada.HasValue && horaSalida.HasValue)
+                    estado = "Completo";
+                else if (horaEntrada.HasValue)
+                    estado = "Pendiente salida";
+                else if (horaSalida.HasValue)
+                    estado = "Salida sin entrada";
 
                 resultado.Add(new ReporteTrabajadorJefeDto
                 {

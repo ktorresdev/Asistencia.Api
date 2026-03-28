@@ -1,0 +1,135 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* ── ACCORDION ── */
+.acc-item {
+  border: 1px solid var(--brd);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--surf);
+  transition: all .2s ease;
+  margin-bottom: 2px;
+}
+.acc-item.open {
+  border-color: var(--acc);
+  box-shadow: 0 4px 12px rgba(0,0,0,.08);
+  margin-bottom: 8px;
+  overflow: visible; /* Prevent clipping focused input glows or buttons */
+}
+
+.acc-hdr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--surf2);
+  cursor: pointer;
+  user-select: none;
+  transition: background .2s;
+}
+.acc-hdr:hover { background: var(--surf3); }
+.acc-item.open .acc-hdr { background: var(--surf); border-bottom: 1px solid var(--brd); }
+
+.acc-title {
+  display: flex;
+  flex-direction: column;
+}
+.acc-main-lbl { font-size: 13px; font-weight: 700; color: var(--txt); }
+.acc-sub-lbl { font-size: 11px; color: var(--txt3); font-family: var(--mono); margin-top: 2px; }
+
+.acc-icon {
+  font-size: 14px;
+  color: var(--txt3);
+  transition: transform .25s ease;
+}
+.acc-item.open .acc-icon { transform: rotate(180deg); color: var(--acc); }
+
+.acc-body {
+  padding: 16px 16px 20px 16px; /* Extra bottom padding for buttons */
+  display: flex;
+  flex-direction: column;
+  gap: 16px; /* Spacing between fields */
+  background: var(--surf);
+  animation: slideDown .25s ease-out;
+  height: auto;
+  min-height: min-content;
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ── DRAWER SPACING ── */
+.drawer-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 20px 16px !important;
+  display: flex;
+  flex-direction: column;
+  gap: 16px !important;
+
+  /* Nice scrollbar */
+  &::-webkit-scrollbar { width: 6px; }
+  &::-webkit-scrollbar-track { background: transparent; }
+  &::-webkit-scrollbar-thumb { background: var(--brd); border-radius: 10px; }
+  &::-webkit-scrollbar-thumb:hover { background: var(--txt3); }
+}
+
+/* Ensure form-row handles stacking well within drawer context */
+.drawer .form-row {
+  @media (max-width: 580px) {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+}
+
+.drawer-ftr {
+  flex-shrink: 0;
+}
+
+/* ── Wiz steps ── */
+.wiz-step {
+  transition: color .2s, border-color .2s;
+}
+.wiz-step.active {
+  animation: fadeUp .2s ease both;
+}
+.wiz-step.done {
+  transition: color .3s ease;
+}
+
+/* ── User avatar card ── */
+.user-card {
+  border-radius: 12px;
+  transition: box-shadow .2s;
+  animation: fadeUp .25s ease both;
+  &:hover {
+    box-shadow: 0 4px 16px rgba(0,0,0,.1);
+  }
+}
+
+/* ── Table row hover — highlight actions ── */
+.tbl tr:hover .btn {
+  opacity: 1;
+}
+.tbl td .btn {
+  transition: opacity .15s, transform .12s, box-shadow .12s;
+}
+
+/* ── Acc item — additional micro-interaction ── */
+.acc-hdr {
+  transition: background .18s, box-shadow .18s;
+}
+.acc-item:not(.open):hover {
+  box-shadow: 0 2px 8px rgba(0,0,0,.06);
+  transform: translateY(-1px);
+  transition: transform .18s, box-shadow .18s;
+}
