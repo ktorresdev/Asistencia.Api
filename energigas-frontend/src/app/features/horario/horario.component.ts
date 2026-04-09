@@ -1,6 +1,7 @@
 import { Component, inject, signal, computed, OnInit, OnDestroy, effect, untracked } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import * as XLSX from 'xlsx';
 import { forkJoin, of } from 'rxjs';
 import { switchMap } from 'rxjs/operators';
 import { RrhhService } from '../../core/services/rrhh.service';
@@ -715,5 +716,65 @@ export class HorarioComponent implements OnInit, OnDestroy {
     if (n.includes('TARDE')) return 'T';
     if (n.includes('NOCHE') || n.includes('NOCTURNO')) return 'N';
     return 'F'; // fallback: fixed shift
+  }
+
+  exportarXLSX(): void {
+    const workers = this.filteredWorkers();
+    if (!workers.length) return;
+
+    const dates = this.week.weekDates();
+    const fi = this.week.toISO(dates[0]);
+    const ff = this.week.toISO(dates[6]);
+
+    // Cabeceras: columnas fijas + un col por día
+    const dayHeaders = this.DAYS.map((d, i) => `${d} ${this.week.toISO(dates[i]).slice(5).replace('-', '/')}`);
+    const headers = ['Trabajador', 'DNI', 'Sede', 'Tipo', ...dayHeaders];
+
+    // Mapa de turno legible
+    const shiftLabel: Record<string, string> = {
+      M: 'Mañana', T: 'Tarde', N: 'Noche', F: 'Fijo',
+      D: 'Descanso', B: 'Falta', V: 'Vacaciones', X: 'Feriado', S: 'Suspendido'
+    };
+
+    const data: any[][] = [headers];
+
+    this.workersBySede().forEach(sede => {
+      // Fila de sección por sede
+      data.push([sede.sedeName, '', '', '', ...Array(7).fill('')]);
+
+      sede.subGroups.forEach(grp => {
+        // Fila de sub-grupo (turno)
+        data.push([`  ${grp.label}`, '', '', '', ...Array(7).fill('')]);
+
+        grp.workers.forEach(w => {
+          const sedeName = this.getSedeName(w.sucursalId);
+          const row: any[] = [
+            w.name,
+            w.dni,
+            sedeName,
+            w.tipo,
+            ...dates.map((_, i) => {
+              const code = this.getDisplayShift(w, i);
+              if (!code) return '—';
+              return shiftLabel[code] ?? this.getChipLabel(code);
+            })
+          ];
+          data.push(row);
+        });
+      });
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet(data);
+    ws['!cols'] = [
+      { wch: 32 }, // Trabajador
+      { wch: 12 }, // DNI
+      { wch: 18 }, // Sede
+      { wch: 6  }, // Tipo
+      ...Array(7).fill({ wch: 12 }) // Días
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Horario Semanal');
+    XLSX.writeFile(wb, `horario_semanal_${fi}_${ff}.xlsx`);
   }
 }

@@ -1,6 +1,7 @@
 import { Component, inject, signal, computed, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import * as XLSX from 'xlsx';
 import { RrhhService } from '../../core/services/rrhh.service';
 
 interface ReporteRow {
@@ -59,7 +60,7 @@ const VISIBLE_COLS = Object.keys(COL_LABELS);
           <button class="btn btn-primary btn-sm" (click)="generar()">Buscar</button>
           @if (loading()) { <span class="spin"></span> }
           @if (filasFiltradas().length) {
-            <button class="btn btn-sm" (click)="exportarCSV()">↓ CSV</button>
+            <button class="btn btn-sm" (click)="exportarXLSX()">↓ Excel</button>
           }
         </div>
       </div>
@@ -206,18 +207,29 @@ export class ReportesComponent {
     });
   }
 
-  exportarCSV(): void {
+  exportarXLSX(): void {
     const filas = this.filasFiltradas();
     if (!filas.length) return;
+
     const headers = this.visibleCols.map(c => this.colLabel(c));
-    const rowsCsv = filas.map(r =>
-      this.visibleCols.map(c => `"${(r[c] ?? '').toString().replace(/"/g, '""')}"`)
-        .join(',')
-    );
-    const csv = [headers.join(','), ...rowsCsv].join('\n');
-    const a = document.createElement('a');
-    a.href = 'data:text/csv;charset=utf-8,\uFEFF' + encodeURIComponent(csv);
-    a.download = `reporte_asistencia_${this.fechaInicio()}_${this.fechaFin()}.csv`;
-    a.click();
+    const data = [
+      headers,
+      ...filas.map(r => this.visibleCols.map(c => r[c] ?? ''))
+    ];
+
+    const ws = XLSX.utils.aoa_to_sheet(data);
+
+    // Anchos de columna
+    ws['!cols'] = [
+      { wch: 30 }, // Nombre
+      { wch: 12 }, // DNI
+      { wch: 20 }, // Cargo
+      { wch: 18 }, // Área
+      ...Array(headers.length - 4).fill({ wch: 10 })
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Reporte');
+    XLSX.writeFile(wb, `reporte_asistencia_${this.fechaInicio()}_${this.fechaFin()}.xlsx`);
   }
 }

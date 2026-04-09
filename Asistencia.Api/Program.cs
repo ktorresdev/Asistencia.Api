@@ -41,8 +41,8 @@ builder.Services.AddCors(options =>
     options.AddPolicy(MyAllowSpecificOrigins, policy =>
     {
         policy.WithOrigins(
-                "http://localhost:65344",
-                "https://localhost:65344",
+                "http://localhost:58038",
+                "https://localhost:58038",
                 "http://localhost:4200",
                 "https://localhost:4200",
                 "https://apirrhh.energigas.com",
