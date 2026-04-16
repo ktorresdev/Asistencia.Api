@@ -83,7 +83,8 @@ namespace Asistencia.Api.Controllers
                 IdTrabajador = request.IdTrabajador,
                 Latitud = request.Latitud,
                 Longitud = request.Longitud,
-                FotoUrl = fotoUrl
+                FotoUrl = fotoUrl,
+                EsMockLocation = request.EsMockLocation
             };
 
             return await ProcessMarcacionAsync(marcacionRequest);
@@ -102,6 +103,7 @@ namespace Asistencia.Api.Controllers
                     "ERROR_NO_TURNO" => NotFound(new { success = false, code = response.Code, message = response.Message, detail = response.Detail }),
                     "ERROR_TRABAJADOR_NO_ENCONTRADO" => NotFound(new { success = false, code = response.Code, message = response.Message, detail = response.Detail }),
                     "ERROR_SIN_HORARIO" => NotFound(new { success = false, code = response.Code, message = response.Message, detail = response.Detail }),
+                    "ERROR_GPS_FALSO" => StatusCode(StatusCodes.Status403Forbidden, new { success = false, code = response.Code, message = response.Message, detail = response.Detail }),
                     "ERROR_FUERA_ZONA" => StatusCode(StatusCodes.Status403Forbidden, new { success = false, code = response.Code, message = response.Message, detail = response.Detail }),
                     "ERROR_SALIDA_REGISTRADA" => Conflict(new { success = false, code = response.Code, message = response.Message, detail = response.Detail }),
                     "ERROR_DUPLICADO_RECIENTE" => Conflict(new { success = false, code = response.Code, message = response.Message, detail = response.Detail }),
@@ -155,6 +157,7 @@ namespace Asistencia.Api.Controllers
             public double Latitud { get; set; }
             public double Longitud { get; set; }
             public IFormFile? Foto { get; set; }
+            public bool? EsMockLocation { get; set; }
         }
 
         // ✅ Consultar si puede marcar y obtener horario actual
