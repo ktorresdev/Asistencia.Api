@@ -18,6 +18,8 @@ namespace Asistencia.Data.Entities.MarcacionAsistenciaEntites
         public decimal? Longitud { get; set; }
         public string? FotoUrl { get; set; }
         public bool? UbicacionValida { get; set; }
+        /// <summary>true si el cliente reportó que la ubicación proviene de un proveedor simulado (GPS falso).</summary>
+        public bool? EsMockLocation { get; set; }
         /// <summary>Sede de pertenencia del trabajador (para reportes).</summary>
         public int? SucursalId { get; set; }
         /// <summary>Sede donde físicamente se realizó la marcación (auditoría).</summary>

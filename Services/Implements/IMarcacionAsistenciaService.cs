@@ -24,6 +24,11 @@ namespace Asistencia.Services.Implements
         public double Latitud { get; set; }
         public double Longitud { get; set; }
         public string? FotoUrl { get; set; }
+        /// <summary>
+        /// Indica si el cliente detectó que la ubicación proviene de un proveedor simulado.
+        /// Android: Location.isMock() / isFromMockProvider(). iOS: heurística de la app.
+        /// </summary>
+        public bool? EsMockLocation { get; set; }
     }
 
     public class MarcacionResponse

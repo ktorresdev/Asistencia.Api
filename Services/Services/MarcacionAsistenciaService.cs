@@ -405,6 +405,18 @@ namespace Asistencia.Services.Services
              var (geofenceSucursal, distancia, ubicacionValida) = ResolverSucursalPorUbicacion(
                 trabajador, marcacionRequest.Latitud, marcacionRequest.Longitud);
 
+            // Bloquear GPS falso solo si el trabajador tiene validación de zona activa
+            if (marcacionRequest.EsMockLocation == true && trabajador.MarcajeEnZona)
+            {
+                return new MarcacionResponse
+                {
+                    Success = false,
+                    Code = "ERROR_GPS_FALSO",
+                    Message = "Se detectó una ubicación simulada. No se permite marcar con GPS falso.",
+                    Detail = "Desactiva cualquier app de ubicación simulada y vuelve a intentarlo."
+                };
+            }
+
             if (!ubicacionValida && trabajador.MarcajeEnZona)
             {
                 return new MarcacionResponse
@@ -480,7 +492,8 @@ namespace Asistencia.Services.Services
                 Longitud = (decimal)marcacionRequest.Longitud,
                 TipoMarcacion = tipoMarcacion,
                 FotoUrl = marcacionRequest.FotoUrl,
-                UbicacionValida = ubicacionValida
+                UbicacionValida = ubicacionValida,
+                EsMockLocation = marcacionRequest.EsMockLocation
             };
 
             _context.MarcacionesAsistencia.Add(nuevaMarcacion);

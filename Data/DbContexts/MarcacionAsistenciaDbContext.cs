@@ -270,6 +270,7 @@ namespace Asistencia.Data.DbContexts
                 entity.Property(e => e.Longitud).HasColumnName("longitud").HasColumnType("decimal(11, 8)");
                 entity.Property(e => e.FotoUrl).HasColumnName("foto_url").HasMaxLength(255);
                 entity.Property(e => e.UbicacionValida).HasColumnName("ubicacion_valida");
+                entity.Property(e => e.EsMockLocation).HasColumnName("es_mock_location");
                 entity.Property(e => e.SucursalId).HasColumnName("id_sucursal");
                 entity.Property(e => e.SucursalMarcacionId).HasColumnName("id_sucursal_marcacion");
 
