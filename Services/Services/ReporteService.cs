@@ -1,4 +1,4 @@
-﻿using Asistencia.Data.DbContexts;
+﻿﻿using Asistencia.Data.DbContexts;
 using Asistencia.Data.Entities.MarcacionAsistenciaEntites;
 using Asistencia.Services.Implements;
 using Microsoft.Data.SqlClient;
@@ -305,8 +305,20 @@ namespace Asistencia.Services.Services
             var horarioTurno = asignacionActiva.Turno?.HorariosTurno?.FirstOrDefault(ht => ht.EsActivo);
             if (horarioTurno?.HorariosDetalle == null) return null!;
 
-            // 5. Encontrar el detalle del día específico (ISO: Lunes=1, Domingo=7)
-            string diaSemanaString = fecha.ToString("dddd", new System.Globalization.CultureInfo("en-US")); // 'Monday', 'Tuesday', etc.
+            // 5. Encontrar el detalle del día específico en ESPAÑOL y MAYÚSCULAS
+            // para coincidir con la lógica de HorarioResolverService y la base de datos.
+            string diaSemanaString = fecha.DayOfWeek switch
+            {
+                DayOfWeek.Monday    => "LUNES",
+                DayOfWeek.Tuesday   => "MARTES",
+                DayOfWeek.Wednesday => "MIERCOLES",
+                DayOfWeek.Thursday  => "JUEVES",
+                DayOfWeek.Friday    => "VIERNES",
+                DayOfWeek.Saturday  => "SABADO",
+                DayOfWeek.Sunday    => "DOMINGO",
+                _ => ""
+            };
+
             return horarioTurno.HorariosDetalle.FirstOrDefault(hd => hd.DiaSemana.Equals(diaSemanaString, StringComparison.OrdinalIgnoreCase))!;
         }
 

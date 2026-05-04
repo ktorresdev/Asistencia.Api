@@ -1,4 +1,4 @@
-﻿using Asistencia.Data.DbContexts;
+﻿﻿using Asistencia.Data.DbContexts;
 using Asistencia.Data.Entities.MarcacionAsistenciaEntites;
 using Asistencia.Services.Dtos;
 using Asistencia.Services.Implements;
@@ -135,27 +135,23 @@ namespace Asistencia.Services.Services
                 var detallesPts = pts.HorarioTurno.HorariosDetalle;
                 if (detallesPts != null && detallesPts.Any())
                 {
-                    // Intentar hacer match de ventana con cada detalle del HorarioTurno del día
-                    foreach (var hd in detallesPts)
+                    // Seleccionar el mejor turno para 'now' (soporta doble turno en PTS)
+                    var bestPts = SelectBestHorarioDetalle(
+                        detallesPts, now, EarlyWindowTolerance, LateWindowTolerance);
+
+                    if (bestPts != null)
                     {
-                        if (TryMatchHorarioDetalleWindow(
-                                hd, now,
-                                EarlyWindowTolerance, LateWindowTolerance,
-                                out var ws, out var we))
+                        return new ShiftContext
                         {
-                            var range = BuildScheduledRangeFromMatchedWindow(hd, now);
-                            return new ShiftContext
-                            {
-                                HasAssignedShift = true,
-                                HasActiveSchedule = true,
-                                ScheduleDetail = hd,
-                                ScheduledStart = range.scheduledStart,
-                                ScheduledEnd = range.scheduledEnd,
-                                WindowStart = ws,
-                                WindowEnd = we,
-                                FuenteHorario = "PTS"
-                            };
-                        }
+                            HasAssignedShift = true,
+                            HasActiveSchedule = true,
+                            ScheduleDetail = bestPts.Value.hd,
+                            ScheduledStart = bestPts.Value.ss,
+                            ScheduledEnd = bestPts.Value.se,
+                            WindowStart = bestPts.Value.ws,
+                            WindowEnd = bestPts.Value.we,
+                            FuenteHorario = "PTS"
+                        };
                     }
 
                     // PTS existe pero la hora actual está fuera de ventana.
@@ -227,27 +223,23 @@ namespace Asistencia.Services.Services
                 };
             }
 
-            // Intentar match de ventana con los detalles del horario base
-            foreach (var detalle in horarioTurnoBase.HorariosDetalle)
+            // Seleccionar el mejor turno para 'now' (soporta doble turno en ASIGNACION)
+            var bestAsig = SelectBestHorarioDetalle(
+                horarioTurnoBase.HorariosDetalle, now, EarlyWindowTolerance, LateWindowTolerance);
+
+            if (bestAsig != null)
             {
-                if (TryMatchHorarioDetalleWindow(
-                        detalle, now,
-                        EarlyWindowTolerance, LateWindowTolerance,
-                        out var windowStart, out var windowEnd))
+                return new ShiftContext
                 {
-                    var scheduledRange = BuildScheduledRangeFromMatchedWindow(detalle, now);
-                    return new ShiftContext
-                    {
-                        HasAssignedShift = true,
-                        HasActiveSchedule = true,
-                        ScheduleDetail = detalle,
-                        ScheduledStart = scheduledRange.scheduledStart,
-                        ScheduledEnd = scheduledRange.scheduledEnd,
-                        WindowStart = windowStart,
-                        WindowEnd = windowEnd,
-                        FuenteHorario = "ASIGNACION_BASE"
-                    };
-                }
+                    HasAssignedShift = true,
+                    HasActiveSchedule = true,
+                    ScheduleDetail = bestAsig.Value.hd,
+                    ScheduledStart = bestAsig.Value.ss,
+                    ScheduledEnd = bestAsig.Value.se,
+                    WindowStart = bestAsig.Value.ws,
+                    WindowEnd = bestAsig.Value.we,
+                    FuenteHorario = "ASIGNACION_BASE"
+                };
             }
 
             // Fuera de ventana pero con fallback → usar el detalle del día
@@ -275,14 +267,12 @@ namespace Asistencia.Services.Services
             // ── PASO 3: Horario genérico por defecto ────────────────────
             if (includeDefaultFallback)
             {
-                var defaultStart = now.Date.Add(DefaultStartTime);
-                var defaultEnd = now.Date.Add(DefaultEndTime);
                 return new ShiftContext
                 {
                     HasAssignedShift = true,
                     HasActiveSchedule = true,
-                    ScheduledStart = defaultStart,
-                    ScheduledEnd = defaultEnd,
+                    ScheduledStart = now.Date,
+                    ScheduledEnd = now.Date.AddDays(1).AddTicks(-1),
                     WindowStart = now.Date,
                     WindowEnd = now.Date.AddDays(1).AddTicks(-1),
                     FuenteHorario = "DEFAULT"
@@ -334,7 +324,7 @@ namespace Asistencia.Services.Services
                  marcacionRequest.IdTrabajador,
                  now,
                  includeTodayFallback: true,
-                 includeDefaultFallback: false);
+                 includeDefaultFallback: true);
 
             if (!shiftContext.HasAssignedShift)
             {
@@ -425,14 +415,27 @@ namespace Asistencia.Services.Services
                  .OrderBy(m => m.FechaHora)
                  .ToListAsync();
 
+            // Doble turno: descartar marcaciones de SALIDA pertenecientes a un turno anterior.
+            // Si la salida ocurrió antes del inicio programado del turno actual resuelto,
+            // corresponde al turno previo y no debe bloquear la entrada del turno siguiente.
+            // Ejemplo: turno A (19:00-00:00) termina a las 23:58; el trabajador vuelve a las 00:05
+            // para el turno B (00:00-06:00). Sin este filtro, la SALIDA de las 23:58 quedaría
+            // dentro de la ventana de turno B y dispararía ERROR_SALIDA_REGISTRADA.
+            var marksForCurrentShift = existingMarksToday
+                .Where(m => !(
+                    string.Equals(m.TipoMarcacion, "SALIDA", StringComparison.OrdinalIgnoreCase) &&
+                    shiftContext.ScheduledStart.HasValue &&
+                    m.FechaHora < shiftContext.ScheduledStart.Value))
+                .ToList();
+
             string tipoMarcacion;
-            if (!existingMarksToday.Any())
+            if (!marksForCurrentShift.Any())
             {
                 tipoMarcacion = "ENTRADA";
             }
             else
             {
-                var lastMark = existingMarksToday.Last();
+                var lastMark = marksForCurrentShift.Last();
                 if (string.Equals(lastMark.TipoMarcacion, "ENTRADA", StringComparison.OrdinalIgnoreCase))
                 {
                     tipoMarcacion = "SALIDA";
@@ -450,7 +453,7 @@ namespace Asistencia.Services.Services
             }
 
              //── 5.Evitar duplicados recientes(ventana 2 minutos) ───────
-             var existeMarcacionIgual = existingMarksToday.Any(m =>
+             var existeMarcacionIgual = marksForCurrentShift.Any(m =>
                  m.TipoMarcacion == tipoMarcacion &&
                  Math.Abs((m.FechaHora - now).TotalSeconds) < 120);
 
@@ -523,12 +526,20 @@ namespace Asistencia.Services.Services
                 .OrderBy(m => m.FechaHora)
                 .ToListAsync();
 
-            var lastEntry = marks.FirstOrDefault(m =>
+            // Doble turno: ignorar SALIDAS de un turno anterior que queden dentro de la ventana.
+            var marksForShift = marks
+                .Where(m => !(
+                    string.Equals(m.TipoMarcacion, "SALIDA", StringComparison.OrdinalIgnoreCase) &&
+                    shiftContext.ScheduledStart.HasValue &&
+                    m.FechaHora < shiftContext.ScheduledStart.Value))
+                .ToList();
+
+            var lastEntry = marksForShift.FirstOrDefault(m =>
                 string.Equals(m.TipoMarcacion, "ENTRADA", StringComparison.OrdinalIgnoreCase));
 
             var lastExit = lastEntry == null
                 ? null
-                : marks.LastOrDefault(m =>
+                : marksForShift.LastOrDefault(m =>
                     string.Equals(m.TipoMarcacion, "SALIDA", StringComparison.OrdinalIgnoreCase) &&
                     m.FechaHora > lastEntry.FechaHora);
 
@@ -726,17 +737,59 @@ namespace Asistencia.Services.Services
         }
 
         /// <summary>
+        /// Evalúa todos los HorarioDetalle de la lista y devuelve el que mejor se ajusta a 'now'.
+        /// Cuando hay doble turno y ambos caben en ventana (p.ej. a las 00:05 el turno 00:00-06:00
+        /// y el turno 19:00-00:00 del día anterior), se prefiere el turno que aún está activo
+        /// (scheduledEnd >= now) y, entre varios activos, el que inició más recientemente.
+        /// </summary>
+        private (HorarioDetalle hd, DateTime ws, DateTime we, DateTime ss, DateTime se)?
+            SelectBestHorarioDetalle(
+                IEnumerable<HorarioDetalle> detalles,
+                DateTime now,
+                TimeSpan earlyWindow,
+                TimeSpan lateWindow)
+        {
+            var matches = new List<(HorarioDetalle hd, DateTime ws, DateTime we, DateTime ss, DateTime se)>();
+
+            foreach (var hd in detalles)
+            {
+                if (TryMatchHorarioDetalleWindow(hd, now, earlyWindow, lateWindow,
+                    out var ws, out var we, out var baseDate))
+                {
+                    var (ss, se) = BuildScheduledRange(hd, baseDate);
+                    matches.Add((hd, ws, we, ss, se));
+                }
+            }
+
+            if (!matches.Any()) return null;
+
+            // Prioridad 1: turno cuya hora de fin aún no llegó (turno activo).
+            // Prioridad 2: entre activos, el que inició más recientemente (evita quedarse
+            //              con un turno nocturno que terminó hace instantes).
+            var best = matches
+                .OrderByDescending(m => m.se >= now)
+                .ThenByDescending(m => m.ss)
+                .First();
+
+            return best;
+        }
+
+        /// <summary>
         /// Determina si el HorarioDetalle aplica para 'now' según su ventana de marcación.
         /// Prueba el día actual, el anterior (marcas nocturnas después de medianoche)
         /// y el siguiente (para entradas muy anticipadas).
+        /// Devuelve además <paramref name="matchedBaseDate"/> — la fecha base del día que hizo match —
+        /// para que el llamador pueda construir el rango exacto sin recalcular la fecha.
         /// </summary>
         private bool TryMatchHorarioDetalleWindow(
             HorarioDetalle hd, DateTime now,
             TimeSpan earlyWindow, TimeSpan lateWindow,
-            out DateTime windowStart, out DateTime windowEnd)
+            out DateTime windowStart, out DateTime windowEnd,
+            out DateTime matchedBaseDate)
         {
             windowStart = DateTime.MinValue;
             windowEnd = DateTime.MinValue;
+            matchedBaseDate = now.Date;
 
             bool isOvernight = hd.SalidaDiaSiguiente || hd.HoraFin < hd.HoraInicio;
 
@@ -747,7 +800,10 @@ namespace Asistencia.Services.Services
                 var e = isOvernight ? now.Date.AddDays(1).Add(hd.HoraFin) : now.Date.Add(hd.HoraFin);
                 var ws = s.Subtract(earlyWindow);
                 var we = e.Add(lateWindow);
-                if (now >= ws && now <= we) { windowStart = ws; windowEnd = we; return true; }
+                if (now >= ws && now <= we)
+                {
+                    windowStart = ws; windowEnd = we; matchedBaseDate = now.Date; return true;
+                }
             }
 
             // Día anterior (marcaciones nocturnas después de medianoche)
@@ -758,7 +814,10 @@ namespace Asistencia.Services.Services
                 var e = isOvernight ? prev.AddDays(1).Add(hd.HoraFin) : prev.Add(hd.HoraFin);
                 var ws = s.Subtract(earlyWindow);
                 var we = e.Add(lateWindow);
-                if (now >= ws && now <= we) { windowStart = ws; windowEnd = we; return true; }
+                if (now >= ws && now <= we)
+                {
+                    windowStart = ws; windowEnd = we; matchedBaseDate = prev; return true;
+                }
             }
 
             // Día siguiente (entradas muy anticipadas, ej: 22:00 para turno que empieza a 00:00)
@@ -769,7 +828,10 @@ namespace Asistencia.Services.Services
                 var e = isOvernight ? next.AddDays(1).Add(hd.HoraFin) : next.Add(hd.HoraFin);
                 var ws = s.Subtract(earlyWindow);
                 var we = e.Add(lateWindow);
-                if (now >= ws && now <= we) { windowStart = ws; windowEnd = we; return true; }
+                if (now >= ws && now <= we)
+                {
+                    windowStart = ws; windowEnd = we; matchedBaseDate = next; return true;
+                }
             }
 
             return false;

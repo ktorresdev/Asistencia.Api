@@ -13,6 +13,7 @@ export const routes: Routes = [
       { path: 'horario', loadComponent: () => import('./features/horario/horario.component').then(m => m.HorarioComponent) },
       { path: 'programacion', loadComponent: () => import('./features/programacion/programacion.component').then(m => m.ProgramacionComponent) },
       { path: 'coberturas', loadComponent: () => import('./features/coberturas/coberturas.component').then(m => m.CoberturasComponent) },
+      { path: 'justificaciones', loadComponent: () => import('./features/justificaciones/justificaciones.component').then(m => m.JustificacionesComponent) },
       { path: 'ausencias', loadComponent: () => import('./features/ausencias/ausencias.component').then(m => m.AusenciasComponent) },
       { path: 'trabajadores', loadComponent: () => import('./features/trabajadores/trabajadores.component').then(m => m.TrabajadoresComponent) },
       { path: 'resumen', loadComponent: () => import('./features/resumen/resumen.component').then(m => m.ResumenComponent) },

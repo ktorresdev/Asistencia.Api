@@ -172,6 +172,15 @@ namespace Asistencia.Api.Controllers
             if (await _context.Users.AnyAsync(u => u.Username == dto.Username))
                 return Conflict(new { message = "El nombre de usuario ya está en uso." });
 
+            // Si el jefe inmediato no fue enviado explícitamente, se asigna el trabajador
+            // del usuario logueado (quien registra ES el jefe del nuevo trabajador).
+            if (!dto.JefeInmediatoId.HasValue)
+            {
+                var claimJefe = User.FindFirst("trabajador_id")?.Value;
+                if (int.TryParse(claimJefe, out var jefeId))
+                    dto.JefeInmediatoId = jefeId;
+            }
+
             // Find or create Persona by DNI
             var persona = await _context.Personas.FirstOrDefaultAsync(p => p.Dni == dto.Dni);
 

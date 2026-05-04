@@ -10,7 +10,8 @@ import {
   AsignacionTurnoCreateDto, AsignacionTurnoResponse,
   ProgramacionSemanalRequest, PtsResponse, PtsDiaRecord,
   Cobertura, CoberturaCreateDto,
-  ResumenDiario, Notificacion, TardanzaReporte, AusenciaRegistrada, DashboardResumen
+  ResumenDiario, Notificacion, TardanzaReporte, AusenciaRegistrada, DashboardResumen,
+  TipoJustificacion, Justificacion, JustificacionCreateDto
 } from '../models/rrhh.models';
 
 @Injectable({ providedIn: 'root' })
@@ -347,4 +348,40 @@ export class RrhhService {
     Object.entries(params).forEach(([k, v]) => { if (v != null) httpParams = httpParams.set(k, String(v)); });
     return this.http.get<any[]>(`${this.api}/api/Reporte/resumen`, { params: httpParams });
   }
-}
+  // ── JUSTIFICACIONES ──────────────────────────────────────────
+  getTiposJustificacion(): Observable<TipoJustificacion[]> {
+    return this.http.get<TipoJustificacion[]>(`${this.api}/api/Rrhh/Justificaciones/tipos`);
+  }
+
+  getJustificaciones(filters?: { fecha?: string; estado?: string; idTrabajador?: number }): Observable<Justificacion[]> {
+    let params = new HttpParams();
+    if (filters?.fecha) params = params.set('fecha', filters.fecha);
+    if (filters?.estado) params = params.set('estado', filters.estado);
+    if (filters?.idTrabajador) params = params.set('idTrabajador', filters.idTrabajador);
+    return this.http.get<Justificacion[]>(`${this.api}/api/Rrhh/Justificaciones`, { params });
+  }
+
+  getJustificacion(id: number): Observable<Justificacion> {
+    return this.http.get<Justificacion>(`${this.api}/api/Rrhh/Justificaciones/${id}`);
+  }
+
+  crearJustificacion(dto: JustificacionCreateDto): Observable<any> {
+    const formData = new FormData();
+    formData.append('trabajadorId', dto.trabajadorId.toString());
+    formData.append('tipoJustificacionId', dto.tipoJustificacionId.toString());
+    formData.append('fechaJustificada', dto.fechaJustificada);
+    if (dto.motivo) formData.append('motivo', dto.motivo);
+    
+    // Add files to FormData
+    dto.archivos.forEach(file => formData.append('Archivos', file));
+    
+    return this.http.post<any>(`${this.api}/api/Rrhh/Justificaciones`, formData);
+  }
+
+  aprobarJustificacion(id: number): Observable<void> {
+    return this.http.put<void>(`${this.api}/api/Rrhh/Justificaciones/${id}/aprobar`, {});
+  }
+
+  rechazarJustificacion(id: number): Observable<void> {
+    return this.http.put<void>(`${this.api}/api/Rrhh/Justificaciones/${id}/rechazar`, {});
+  }}

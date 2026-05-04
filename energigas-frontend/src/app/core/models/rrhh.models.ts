@@ -316,3 +316,39 @@ export interface ReporteAsistenciaParams {
   sucursalId?: number;
   trabajadorId?: number;
 }
+
+// ── JUSTIFICACIONES ──────────────────────────────────────────
+export interface TipoJustificacion {
+  id: number;
+  nombreTipo: string;
+  requiereAdjunto: boolean;
+}
+
+export interface DocumentoJustificacion {
+  id: number;
+  url: string;
+  nombreArchivo: string;
+}
+
+export interface Justificacion {
+  id: number;
+  trabajadorId: number;
+  nombreTrabajador: string;
+  tipoJustificacionId: number;
+  tipoJustificacion: string;
+  requiereAdjunto: boolean;
+  fechaJustificada: string;
+  motivo?: string | null;
+  estado: 'PENDIENTE' | 'APROBADO' | 'RECHAZADO';
+  fechaAutorizacion?: string | null;
+  usuarioAutoriza?: string | null;
+  documentos: DocumentoJustificacion[];
+}
+
+export interface JustificacionCreateDto {
+  trabajadorId: number;
+  tipoJustificacionId: number;
+  fechaJustificada: string;
+  motivo?: string;
+  archivos: File[];
+}

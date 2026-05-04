@@ -20,5 +20,6 @@ namespace Asistencia.Data.Entities.MarcacionAsistenciaEntites
         public virtual Trabajador Trabajador { get; set; } = null!;
         public virtual TipoJustificacion TipoJustificacion { get; set; } = null!;
         public virtual MaestroEstado Estado { get; set; } = null!;
+        public virtual ICollection<JustificacionDocumento> Documentos { get; set; } = new List<JustificacionDocumento>();
     }
 }

@@ -27,6 +27,7 @@ namespace Asistencia.Data.DbContexts
         public DbSet<AsignacionTurno> AsignacionesTurno { get; set; }
         public DbSet<TipoJustificacion> TipoJustificaciones { get; set; }
         public DbSet<Justificacion> Justificaciones { get; set; }
+        public DbSet<JustificacionDocumento> JustificacionDocumentos { get; set; }
         public DbSet<MarcacionAsistencia> MarcacionesAsistencia { get; set; }
         public DbSet<SolicitudHorasExtra> SolicitudesHorasExtra { get; set; }
         public DbSet<User> Users { get; set; }
@@ -255,6 +256,26 @@ namespace Asistencia.Data.DbContexts
                 entity.HasOne(d => d.Estado).WithMany().HasForeignKey(d => d.IdEstado);
                 entity.HasOne(d => d.TipoJustificacion).WithMany().HasForeignKey(d => d.TipoJustificacionId);
                 entity.HasOne<Trabajador>().WithMany().HasForeignKey(d => d.IdAutoriza).OnDelete(DeleteBehavior.NoAction);
+            });
+
+            // JustificacionDocumento
+            modelBuilder.Entity<JustificacionDocumento>(entity =>
+            {
+                entity.ToTable("JUSTIFICACION_DOCUMENTOS");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id_documento");
+                entity.Property(e => e.JustificacionId).HasColumnName("id_justificacion").IsRequired();
+                entity.Property(e => e.DocumentoUrl).HasColumnName("documento_url").HasMaxLength(500).IsRequired();
+                entity.Property(e => e.NombreArchivo).HasColumnName("nombre_archivo").HasMaxLength(255).IsRequired();
+                entity.Property(e => e.CreatedAt)
+                    .HasColumnName("created_at")
+                    .HasColumnType("datetime2")
+                    .HasDefaultValueSql("SYSUTCDATETIME()")
+                    .ValueGeneratedOnAdd();
+                entity.HasOne(d => d.Justificacion)
+                    .WithMany(j => j.Documentos)
+                    .HasForeignKey(d => d.JustificacionId)
+                    .OnDelete(DeleteBehavior.Cascade);
             });
 
             // MarcacionAsistencia

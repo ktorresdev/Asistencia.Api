@@ -1,0 +1,255 @@
+<div style="display:contents">
+
+  <!-- TOOLBAR -->
+  <div class="toolbar">
+    <button class="pill" [class.on]="filtroEstado()==='todos'" (click)="filtroEstado.set('todos'); loadJustificaciones()">Todos</button>
+    <button class="pill" [class.on]="filtroEstado()==='PENDIENTE'" (click)="filtroEstado.set('PENDIENTE'); loadJustificaciones()">Pendientes <span class="nav-badge" *ngIf="pendingCount()">{{ pendingCount() }}</span></button>
+    <button class="pill" [class.on]="filtroEstado()==='APROBADO'" (click)="filtroEstado.set('APROBADO'); loadJustificaciones()">Aprobados</button>
+    <button class="pill" [class.on]="filtroEstado()==='RECHAZADO'" (click)="filtroEstado.set('RECHAZADO'); loadJustificaciones()">Rechazados</button>
+    <span style="flex:1"></span>
+    <button class="btn btn-primary btn-sm" (click)="openDrawer()">+ Nueva justificación</button>
+    @if (loading()) { <span class="spin"></span> }
+  </div>
+
+  <!-- FILTERS ROW -->
+  <div class="filters-row">
+    <input type="date" class="inp" [ngModel]="filtroFecha()" (ngModelChange)="filtroFecha.set($event); loadJustificaciones()" placeholder="Filtrar por fecha" />
+    <input type="text" class="inp" placeholder="Buscar trabajador o tipo..." [ngModel]="filtroTrabajador()" (ngModelChange)="filtroTrabajador.set($event)" />
+  </div>
+
+  <!-- LIST -->
+  <div class="grid-outer" style="overflow-y:auto">
+    @if (!filtered().length) {
+      <div style="padding:40px;text-align:center;color:var(--txt3)">No hay registros</div>
+    }
+    @for (j of filtered(); track getJustificacionId(j)) {
+      <div class="just-item" (click)="openDetalle(j)">
+        <div style="display:flex;align-items:center;gap:12px;flex:1;min-width:0">
+          <div style="flex-shrink:0">
+            <span [class]="'estado-badge ' + getEstadoBadgeClass(j.estado)" [style.background]="getEstadoColor(j.estado)">
+              {{ j.estado }}
+            </span>
+          </div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+              {{ j.nombreTrabajador }}
+            </div>
+            <div style="font-size:11px;color:var(--txt2);font-family:var(--mono);margin-top:2px">
+              {{ j.tipoJustificacion }} · {{ j.fechaJustificada | date:'dd/MM/yyyy' }}
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+          @if (j.documentos.length) {
+            <span style="font-size:11px;color:var(--txt3);font-family:var(--mono);background:var(--brd);padding:2px 6px;border-radius:4px">
+              📎 {{ j.documentos.length }}
+            </span>
+          }
+          @if (j.estado === 'PENDIENTE' && auth.isAdminOrSupervisor()) {
+            <button class="btn btn-sm btn-success" (click)="aprobar(j.id); $event.stopPropagation()">Aprobar</button>
+            <button class="btn btn-sm btn-danger" (click)="rechazar(j.id); $event.stopPropagation()">Rechazar</button>
+          }
+        </div>
+      </div>
+    }
+  </div>
+</div>
+
+<!-- OVERLAY / DRAWER (Crear nueva) -->
+<div class="overlay" [class.open]="drawerOpen()" (click)="closeDrawer()"></div>
+<div class="drawer" [class.open]="drawerOpen()">
+  <div class="drawer-hdr">
+    <span class="drawer-title">Nueva justificación</span>
+    <button class="btn-icon" (click)="closeDrawer()">✕</button>
+  </div>
+  <div class="drawer-body">
+    
+    <!-- Trabajador (solo si es admin) -->
+    @if (auth.isAdminOrSupervisor()) {
+      <div class="fld">
+        <label class="fld-lbl">Trabajador</label>
+        <div class="srch-sel">
+          <input class="inp" type="text" placeholder="Buscar trabajador..."
+            [ngModel]="trabajadorQuery()"
+            (ngModelChange)="trabajadorQuery.set($event); trabajadorOpen.set(true)"
+            (focus)="trabajadorOpen.set(true)"
+            (blur)="closeDrops()" />
+          @if (formTrabajadorId()) {
+            <span class="srch-sel-tag">
+              {{ getTrabajadorName(formTrabajadorId()) }}
+              <button (mousedown)="formTrabajadorId.set(0); trabajadorQuery.set('')">✕</button>
+            </span>
+          }
+          @if (trabajadorOpen() && filteredTrabajadores().length) {
+            <div class="srch-drop">
+              @for (w of filteredTrabajadores(); track w.id) {
+                <div class="srch-opt" (mousedown)="selectTrabajador(w)">
+                  <span>{{ w.name }}</span>
+                  <span class="srch-opt-meta">{{ w.dni }} · {{ w.tipo }}</span>
+                </div>
+              }
+            </div>
+          }
+        </div>
+      </div>
+    }
+
+    <!-- Tipo de Justificación -->
+    <div class="fld">
+      <label class="fld-lbl">Tipo de justificación</label>
+      <select class="sel" [ngModel]="formTipoId()" (ngModelChange)="formTipoId.set($event ? +$event : 0)">
+        <option [value]="0">Selecciona un tipo</option>
+        @for (t of tiposJustificacion(); track t.id) {
+          <option [value]="t.id">
+            {{ t.nombreTipo }} @if (t.requiereAdjunto) { <span style="color:var(--txt3)">*</span> }
+          </option>
+        }
+      </select>
+    </div>
+
+    <!-- Fecha -->
+    <div class="fld">
+      <label class="fld-lbl">Fecha a justificar</label>
+      <input type="date" class="inp" [ngModel]="formFecha()" (ngModelChange)="formFecha.set($event)" />
+    </div>
+
+    <!-- Motivo -->
+    <div class="fld">
+      <label class="fld-lbl">Motivo <span style="font-weight:400;color:var(--txt3)">(opcional)</span></label>
+      <textarea class="inp" [ngModel]="formMotivo()" (ngModelChange)="formMotivo.set($event)" 
+        placeholder="Describe el motivo de la justificación..." rows="3" style="resize:vertical"></textarea>
+    </div>
+
+    <!-- Archivos -->
+    <div class="fld">
+      <label class="fld-lbl">
+        Archivos
+        <span style="font-weight:400;color:var(--txt3)">
+          ({{ formArchivos().length }}/{{ MAX_ARCHIVOS }})
+        </span>
+      </label>
+      
+      <!-- Input oculto -->
+      <input type="file" #fileInput hidden multiple 
+        (change)="onFileSelected($event)"
+        accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp" />
+      
+      <!-- Botón de upload -->
+      <button class="btn btn-secondary" (click)="fileInput.click()" [disabled]="formArchivos().length >= MAX_ARCHIVOS">
+        📁 Seleccionar archivos
+      </button>
+      
+      <div style="font-size:10px;color:var(--txt3);margin-top:4px">
+        Tipos permitidos: {{ TIPOS_ARCHIVO.join(', ') }} · Máx {{ MAX_ARCHIVO_SIZE_MB }}MB por archivo
+      </div>
+
+      <!-- Archivos seleccionados -->
+      @if (formArchivos().length > 0) {
+        <div class="archivos-list" style="margin-top:12px">
+          @for (file of formArchivos(); track $index) {
+            <div class="archivo-item">
+              <span style="font-size:11px;overflow:hidden;text-overflow:ellipsis">📄 {{ file.name }}</span>
+              <button class="btn-remove" (click)="removeArchivo($index)">✕</button>
+            </div>
+          }
+        </div>
+      }
+    </div>
+
+    <div class="info-box">
+      Proporciona los detalles necesarios para que tu justificación sea evaluada. Si el tipo requiere archivos (*), debes adjuntar al menos uno.
+    </div>
+  </div>
+  <div class="drawer-ftr">
+    <button class="btn btn-primary" (click)="save()">Guardar</button>
+    <button class="btn" (click)="closeDrawer()">Cancelar</button>
+  </div>
+</div>
+
+<!-- OVERLAY / PANEL (Detalle) -->
+<div class="overlay" [class.open]="detalleOpen()" (click)="closeDetalle()"></div>
+<div class="panel" [class.open]="detalleOpen()">
+  @if (selectedJustificacion(); as j) {
+    <div class="panel-hdr">
+      <span class="panel-title">Detalle de justificación</span>
+      <button class="btn-icon" (click)="closeDetalle()">✕</button>
+    </div>
+    <div class="panel-body">
+      
+      <!-- Información General -->
+      <div class="detail-section">
+        <h4 class="detail-title">Información General</h4>
+        <div class="detail-row">
+          <span class="detail-label">Trabajador:</span>
+          <span class="detail-value">{{ j.nombreTrabajador }}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Tipo:</span>
+          <span class="detail-value">{{ j.tipoJustificacion }}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Fecha:</span>
+          <span class="detail-value">{{ j.fechaJustificada | date:'dd/MM/yyyy' }}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Estado:</span>
+          <span [class]="'estado-badge ' + getEstadoBadgeClass(j.estado)" [style.background]="getEstadoColor(j.estado)">
+            {{ j.estado }}
+          </span>
+        </div>
+      </div>
+
+      <!-- Motivo -->
+      @if (j.motivo) {
+        <div class="detail-section">
+          <h4 class="detail-title">Motivo</h4>
+          <p style="font-size:12px;color:var(--txt2);line-height:1.4;margin:0">
+            {{ j.motivo }}
+          </p>
+        </div>
+      }
+
+      <!-- Autorización -->
+      @if (j.estado !== 'PENDIENTE') {
+        <div class="detail-section">
+          <h4 class="detail-title">Autorización</h4>
+          <div class="detail-row">
+            <span class="detail-label">Autorizado por:</span>
+            <span class="detail-value">{{ j.usuarioAutoriza || '—' }}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Fecha:</span>
+            <span class="detail-value">{{ j.fechaAutorizacion ? (j.fechaAutorizacion | date:'dd/MM/yyyy HH:mm') : '—' }}</span>
+          </div>
+        </div>
+      }
+
+      <!-- Documentos -->
+      @if (j.documentos && j.documentos.length > 0) {
+        <div class="detail-section">
+          <h4 class="detail-title">Documentos adjuntos</h4>
+          <div class="documentos-list">
+            @for (doc of j.documentos; track doc.id) {
+              <div class="documento-item">
+                <span style="flex:1;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+                  📄 {{ doc.nombreArchivo }}
+                </span>
+                <button class="btn btn-sm btn-secondary" (click)="downloadArchivo(doc)">
+                  Descargar
+                </button>
+              </div>
+            }
+          </div>
+        </div>
+      }
+
+    </div>
+    <div class="panel-ftr">
+      @if (j.estado === 'PENDIENTE' && auth.isAdminOrSupervisor()) {
+        <button class="btn btn-success" (click)="aprobar(j.id)">Aprobar</button>
+        <button class="btn btn-danger" (click)="rechazar(j.id)">Rechazar</button>
+      }
+      <button class="btn" (click)="closeDetalle()">Cerrar</button>
+    </div>
+  }
+</div>
