@@ -19,11 +19,13 @@ namespace Asistencia.Api.Controllers
     {
         private readonly ITrabajadorService _trabajadorService;
         private readonly MarcacionAsistenciaDbContext _context;
+        private readonly ILogger<TrabajadoresController> _logger;
 
-        public TrabajadoresController(ITrabajadorService trabajadorService, MarcacionAsistenciaDbContext context)
+        public TrabajadoresController(ITrabajadorService trabajadorService, MarcacionAsistenciaDbContext context, ILogger<TrabajadoresController> logger)
         {
             _trabajadorService = trabajadorService;
             _context = context;
+            _logger = logger;
         }
 
         // GET: api/Rrhh/Trabajadores
@@ -35,116 +37,150 @@ namespace Asistencia.Api.Controllers
             [FromQuery] int? sucursalId = null,
             [FromQuery] string? tipo = null)
         {
-            pageSize = Math.Min(pageSize, 200);
-
-            // ADMIN (jefe local): filtra por jefatura o por sede según contexto.
-            // SUPERADMIN: ve todo.
-            int? jefeId = null;
-            bool soloSede = false; // true = el admin está en comisión, filtra solo por SucursalId
-
-            if (User.IsInRole("ADMIN") && !User.IsInRole("SUPERADMIN"))
+            try
             {
-                var claim = User.FindFirst("trabajador_id")?.Value;
-                if (!int.TryParse(claim, out var tid))
-                    return Ok(new { items = Array.Empty<object>(), totalCount = 0, pageSize, currentPage = pageNumber, totalPages = 0 });
+                pageSize = Math.Min(pageSize, 200);
+                _logger.LogInformation("[Trabajadores] GET page={Page} size={Size} search={Search} sucursal={Sucursal} tipo={Tipo}",
+                    pageNumber, pageSize, search, sucursalId, tipo);
 
-                jefeId = tid;
+                int? jefeId = null;
+                bool soloSede = false;
 
-                // Si viene sucursalId y NO es su sede principal → es comisión → ve todos los de esa sede
-                if (sucursalId.HasValue)
+                if (User.IsInRole("ADMIN") && !User.IsInRole("SUPERADMIN"))
                 {
-                    var esSedePrincipal = await _context.Trabajadores
-                        .AnyAsync(t => t.Id == tid && t.SucursalId == sucursalId.Value);
-
-                    if (!esSedePrincipal)
+                    var claim = User.FindFirst("trabajador_id")?.Value;
+                    if (!int.TryParse(claim, out var tid))
                     {
-                        var today = DateOnly.FromDateTime(DateTime.Today);
-                        var tieneComision = await _context.TrabajadorSucursales
-                            .AnyAsync(ts =>
-                                ts.TrabajadorId == tid &&
-                                ts.SucursalId == sucursalId.Value &&
-                                ts.FechaInicio <= today &&
-                                (ts.FechaFin == null || ts.FechaFin.Value >= today));
+                        _logger.LogWarning("[Trabajadores] ADMIN sin claim trabajador_id válido");
+                        return Ok(new { items = Array.Empty<object>(), totalCount = 0, pageSize, currentPage = pageNumber, totalPages = 0 });
+                    }
 
-                        if (tieneComision)
+                    jefeId = tid;
+
+                    if (sucursalId.HasValue)
+                    {
+                        var esSedePrincipal = await _context.Trabajadores
+                            .AnyAsync(t => t.Id == tid && t.SucursalId == sucursalId.Value);
+
+                        if (!esSedePrincipal)
                         {
-                            soloSede = true; // filtra por sede, no por jefe
-                            jefeId = null;
+                            var today = DateOnly.FromDateTime(DateTime.Today);
+                            var tieneComision = await _context.TrabajadorSucursales
+                                .AnyAsync(ts =>
+                                    ts.TrabajadorId == tid &&
+                                    ts.SucursalId == sucursalId.Value &&
+                                    ts.FechaInicio <= today &&
+                                    (ts.FechaFin == null || ts.FechaFin.Value >= today));
+
+                            if (tieneComision)
+                            {
+                                soloSede = true;
+                                jefeId = null;
+                            }
                         }
                     }
                 }
-            }
 
-            var query = _context.Trabajadores
-                .Include(t => t.Persona)
-                .Include(t => t.Sucursal)
-                .Include(t => t.User)
-                .Include(t => t.AsignacionesTurno.Where(a => a.EsVigente))
-                    .ThenInclude(a => a.Turno)
-                        .ThenInclude(t => t.TipoTurno)
-                .Include(t => t.AsignacionesTurno.Where(a => a.EsVigente))
-                    .ThenInclude(a => a.HorarioTurno)
-                .AsQueryable();
+                _logger.LogInformation("[Trabajadores] Filtro jefeId={JefeId} soloSede={SoloSede}", jefeId, soloSede);
 
-            if (jefeId.HasValue)
-                query = query.Where(t => t.JefeInmediatoId == jefeId.Value);
+                var baseQuery = _context.Trabajadores
+                    .AsNoTracking()
+                    .Include(t => t.Persona)
+                    .Include(t => t.Sucursal)
+                    .Include(t => t.User)
+                    .AsQueryable();
 
-            if (!string.IsNullOrWhiteSpace(search))
-            {
-                var q = search.ToLower();
-                query = query.Where(t =>
-                    t.Persona!.ApellidosNombres.ToLower().Contains(q) ||
-                    t.Persona!.Dni.Contains(search));
-            }
+                if (jefeId.HasValue)
+                    baseQuery = baseQuery.Where(t => t.JefeInmediatoId == jefeId.Value);
 
-            if (sucursalId.HasValue)
-                query = query.Where(t => t.SucursalId == sucursalId.Value);
-
-            if (!string.IsNullOrWhiteSpace(tipo))
-            {
-                var esRot = tipo.ToUpperInvariant().Contains("ROT");
-                query = esRot
-                    ? query.Where(t => t.AsignacionesTurno.Any(a => a.EsVigente && a.Turno!.TipoTurno!.NombreTipo.ToUpper().Contains("ROT")))
-                    : query.Where(t => !t.AsignacionesTurno.Any(a => a.EsVigente && a.Turno!.TipoTurno!.NombreTipo.ToUpper().Contains("ROT")));
-            }
-
-            var totalCount = await query.CountAsync();
-
-            var items = await query
-                .OrderBy(t => t.Persona!.ApellidosNombres)
-                .Skip((pageNumber - 1) * pageSize)
-                .Take(pageSize)
-                .ToListAsync();
-
-            var result = items.Select(t =>
-            {
-                var asig = t.AsignacionesTurno?.FirstOrDefault();
-                return new
+                if (!string.IsNullOrWhiteSpace(search))
                 {
-                    id = t.Id,
-                    personaId = t.PersonaId,
-                    sucursalId = t.SucursalId,
-                    idEstado = t.IdEstado,
-                    dni = t.Persona?.Dni,
-                    apellidosNombres = t.Persona?.ApellidosNombres,
-                    nombreSucursal = t.Sucursal?.NombreSucursal,
-                    tipoTurno = asig?.Turno?.TipoTurno?.NombreTipo,
-                    idTurno = asig?.TurnoId,
-                    idHorarioTurno = asig?.HorarioTurnoId,
-                    horarioTurnoNombre = asig?.HorarioTurno?.NombreHorario,
-                    username = t.User?.Username,
-                    userId = t.UserId
-                };
-            });
+                    var q = search.ToLower();
+                    baseQuery = baseQuery.Where(t =>
+                        t.Persona!.ApellidosNombres.ToLower().Contains(q) ||
+                        t.Persona!.Dni.Contains(search));
+                }
 
-            return Ok(new
+                if (sucursalId.HasValue)
+                    baseQuery = baseQuery.Where(t => t.SucursalId == sucursalId.Value);
+
+                if (!string.IsNullOrWhiteSpace(tipo))
+                {
+                    var esRot = tipo.ToUpperInvariant().Contains("ROT");
+                    var rotWorkerIds = await _context.AsignacionesTurno
+                        .Where(a => a.EsVigente && a.Turno!.TipoTurno!.NombreTipo.ToUpper().Contains("ROT"))
+                        .Select(a => a.TrabajadorId)
+                        .Distinct()
+                        .ToListAsync();
+
+                    baseQuery = esRot
+                        ? baseQuery.Where(t => rotWorkerIds.Contains(t.Id))
+                        : baseQuery.Where(t => !rotWorkerIds.Contains(t.Id));
+                }
+
+                _logger.LogInformation("[Trabajadores] Ejecutando COUNT...");
+                var totalCount = await baseQuery.CountAsync();
+                _logger.LogInformation("[Trabajadores] totalCount={Total}", totalCount);
+
+                var workers = await baseQuery
+                    .OrderBy(t => t.Persona!.ApellidosNombres)
+                    .Skip((pageNumber - 1) * pageSize)
+                    .Take(pageSize)
+                    .ToListAsync();
+
+                _logger.LogInformation("[Trabajadores] workers cargados: {Count}", workers.Count);
+
+                var workerIds = workers.Select(w => w.Id).ToList();
+                var asignaciones = await _context.AsignacionesTurno
+                    .AsNoTracking()
+                    .Where(a => workerIds.Contains(a.TrabajadorId) && a.EsVigente)
+                    .Include(a => a.Turno).ThenInclude(t => t!.TipoTurno)
+                    .Include(a => a.HorarioTurno)
+                    .ToListAsync();
+
+                _logger.LogInformation("[Trabajadores] asignaciones vigentes cargadas: {Count}", asignaciones.Count);
+
+                var asigPorTrabajador = asignaciones
+                    .GroupBy(a => a.TrabajadorId)
+                    .ToDictionary(g => g.Key, g => g.First());
+
+                var result = workers.Select(t =>
+                {
+                    asigPorTrabajador.TryGetValue(t.Id, out var asig);
+                    return new
+                    {
+                        id = t.Id,
+                        personaId = t.PersonaId,
+                        sucursalId = t.SucursalId,
+                        idEstado = t.IdEstado,
+                        dni = t.Persona?.Dni,
+                        apellidosNombres = t.Persona?.ApellidosNombres,
+                        nombreSucursal = t.Sucursal?.NombreSucursal,
+                        tipoTurno = asig?.Turno?.TipoTurno?.NombreTipo,
+                        idTurno = asig?.TurnoId,
+                        idHorarioTurno = asig?.HorarioTurnoId,
+                        horarioTurnoNombre = asig?.HorarioTurno?.NombreHorario,
+                        username = t.User?.Username,
+                        userId = t.UserId
+                    };
+                }).ToList();
+
+                _logger.LogInformation("[Trabajadores] Proyección completa: {Count} items. Retornando OK.", result.Count);
+
+                return Ok(new
+                {
+                    items = result,
+                    totalCount,
+                    pageSize,
+                    currentPage = pageNumber,
+                    totalPages = (int)Math.Ceiling(totalCount / (double)pageSize)
+                });
+            }
+            catch (Exception ex)
             {
-                items = result,
-                totalCount,
-                pageSize,
-                currentPage = pageNumber,
-                totalPages = (int)Math.Ceiling(totalCount / (double)pageSize)
-            });
+                _logger.LogError(ex, "[Trabajadores] ERROR en GetAllTrabajadores page={Page} size={Size}", pageNumber, pageSize);
+                return StatusCode(500, new { message = "Error al listar trabajadores.", detail = ex.Message, inner = ex.InnerException?.Message });
+            }
         }
 
         // GET: api/Rrhh/Trabajadores/5

@@ -118,6 +118,66 @@ namespace Asistencia.Services.Services
             var hoy = now.Date;               // DateTime (sin hora)
             var hoyDateOnly = DateOnly.FromDateTime(hoy); // para PTS
 
+            // ── PASO 0: CRUCE NOCTURNO — PTS DEL DÍA ANTERIOR ───────────
+            // Problema: si el trabajador termina un turno noche (ej: 19:00-07:00) y al día
+            // siguiente su PTS tiene un turno diferente (ej: MAÑANA 07-15), el PASO 1 resuelve
+            // el turno de hoy y su ventana no captura la ENTRADA de anoche → registra otra
+            // ENTRADA en lugar de SALIDA.
+            // Solución: antes de evaluar el PTS de hoy, verificar si ayer había un turno
+            // overnight con una ENTRADA todavía abierta. Si es así, usar ese contexto primero.
+            var ayerDateOnly = DateOnly.FromDateTime(hoy.AddDays(-1));
+            var ptsAyer = await _context.ProgramacionTurnosSemanal
+                .Include(p => p.HorarioTurno)
+                    .ThenInclude(ht => ht!.HorariosDetalle)
+                .FirstOrDefaultAsync(p =>
+                    p.TrabajadorId == trabajadorId &&
+                    p.Fecha == ayerDateOnly &&
+                    p.EsDescanso != true &&
+                    p.EsDiaBoleta != true &&
+                    p.EsVacaciones != true &&
+                    p.IdHorarioTurno != null);
+
+            if (ptsAyer?.HorarioTurno?.HorariosDetalle != null)
+            {
+                foreach (var hdAyer in ptsAyer.HorarioTurno.HorariosDetalle)
+                {
+                    bool isOvernightAyer = hdAyer.SalidaDiaSiguiente || hdAyer.HoraFin < hdAyer.HoraInicio;
+                    if (!isOvernightAyer) continue;
+
+                    if (!TryMatchHorarioDetalleWindow(
+                            hdAyer, now,
+                            EarlyWindowTolerance, LateWindowTolerance,
+                            out var wsAyer, out var weAyer))
+                        continue;
+
+                    // La ventana nocturna de ayer sigue activa en este momento.
+                    // Comprobar si hay una ENTRADA sin cerrar dentro de esa ventana.
+                    var ultimaTipoMarca = await _context.MarcacionesAsistencia
+                        .Where(m => m.TrabajadorId == trabajadorId
+                                 && m.FechaHora >= wsAyer
+                                 && m.FechaHora <= now)
+                        .OrderBy(m => m.FechaHora)
+                        .Select(m => m.TipoMarcacion)
+                        .LastOrDefaultAsync();
+
+                    if (ultimaTipoMarca == "ENTRADA")
+                    {
+                        var rangeAyer = BuildScheduledRange(hdAyer, hoy.AddDays(-1));
+                        return new ShiftContext
+                        {
+                            HasAssignedShift = true,
+                            HasActiveSchedule = true,
+                            ScheduleDetail = hdAyer,
+                            ScheduledStart = rangeAyer.scheduledStart,
+                            ScheduledEnd = rangeAyer.scheduledEnd,
+                            WindowStart = wsAyer,
+                            WindowEnd = weAyer,
+                            FuenteHorario = "PTS_NOCHE_CRUCE"
+                        };
+                    }
+                }
+            }
+
             // ── PASO 1: PROGRAMACION_TURNOS_SEMANAL ─────────────────────
             var pts = await _context.ProgramacionTurnosSemanal
                 .Include(p => p.HorarioTurno)
