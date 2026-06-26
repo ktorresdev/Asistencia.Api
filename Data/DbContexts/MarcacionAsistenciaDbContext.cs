@@ -20,6 +20,8 @@ namespace Asistencia.Data.DbContexts
         public DbSet<Persona> Personas { get; set; }
         public DbSet<SucursalCentro> SucursalCentros { get; set; }
         public DbSet<Trabajador> Trabajadores { get; set; }
+        public DbSet<Area> Areas { get; set; }
+        public DbSet<Puesto> Puestos { get; set; }
         public DbSet<TipoTurno> TipoTurnos { get; set; }
         public DbSet<Turno> Turnos { get; set; }
         public DbSet<HorarioTurno> HorariosTurno { get; set; }
@@ -121,6 +123,7 @@ namespace Asistencia.Data.DbContexts
                 entity.Property(e => e.Cargo).HasColumnName("cargo").HasMaxLength(50);
                 entity.Property(e => e.AreaDepartamento).HasColumnName("area_departamento").HasMaxLength(50);
                 entity.Property(e => e.IdArea).HasColumnName("id_area");
+                entity.Property(e => e.IdPuesto).HasColumnName("id_puesto");
                 entity.Property(e => e.FechaIngreso).HasColumnName("fecha_ingreso");
                 entity.Property(e => e.FechaBaja).HasColumnName("fecha_baja");
                 entity.Property(e => e.IdEstado).HasColumnName("id_estado").IsRequired().HasDefaultValue(10);
@@ -136,6 +139,34 @@ namespace Asistencia.Data.DbContexts
                 entity.HasOne(d => d.Sucursal).WithMany().HasForeignKey(d => d.SucursalId);
                 entity.HasOne(d => d.User).WithMany().HasForeignKey(d => d.UserId);
                 entity.HasOne(d => d.JefeInmediato).WithMany().HasForeignKey(d => d.JefeInmediatoId).OnDelete(DeleteBehavior.NoAction);
+                entity.HasOne(d => d.Area).WithMany().HasForeignKey(d => d.IdArea).OnDelete(DeleteBehavior.NoAction);
+                entity.HasOne(d => d.Puesto).WithMany().HasForeignKey(d => d.IdPuesto).OnDelete(DeleteBehavior.NoAction);
+            });
+
+            // Area
+            modelBuilder.Entity<Area>(entity =>
+            {
+                entity.ToTable("AREAS");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id_area");
+                entity.HasIndex(e => e.NombreArea).IsUnique();
+                entity.Property(e => e.NombreArea).HasColumnName("nombre_area").HasMaxLength(60).IsRequired();
+                entity.Property(e => e.Descripcion).HasColumnName("descripcion").HasMaxLength(120);
+                entity.Property(e => e.EsActivo).HasColumnName("es_activo").HasDefaultValue(true);
+            });
+
+            // Puesto
+            modelBuilder.Entity<Puesto>(entity =>
+            {
+                entity.ToTable("PUESTOS");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id_puesto");
+                entity.HasIndex(e => e.NombrePuesto).IsUnique();
+                entity.Property(e => e.NombrePuesto).HasColumnName("nombre_puesto").HasMaxLength(60).IsRequired();
+                entity.Property(e => e.IdArea).HasColumnName("id_area");
+                entity.Property(e => e.EsActivo).HasColumnName("es_activo").HasDefaultValue(true);
+
+                entity.HasOne(d => d.Area).WithMany().HasForeignKey(d => d.IdArea).OnDelete(DeleteBehavior.NoAction);
             });
 
             // TipoTurno
@@ -307,9 +338,12 @@ namespace Asistencia.Data.DbContexts
                 entity.ToTable("ASISTENCIA_RESUMEN_DIARIO");
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.Id).HasColumnName("id_resumen");
-                entity.HasIndex(e => new { e.TrabajadorId, e.FechaAsistencia }).IsUnique();
+                // Clave única triple para soportar doble turno (>1 fila por trabajador/día,
+                // una por asignación). Las filas de ausencia sin asignación tienen id_asignacion NULL.
+                entity.HasIndex(e => new { e.TrabajadorId, e.FechaAsistencia, e.AsignacionTurnoId }).IsUnique();
 
                 entity.Property(e => e.TrabajadorId).HasColumnName("id_trabajador").IsRequired();
+                entity.Property(e => e.AsignacionTurnoId).HasColumnName("id_asignacion");
                 entity.Property(e => e.FechaAsistencia).HasColumnName("fecha_asistencia").IsRequired();
                 entity.Property(e => e.HoraEntradaTeorica).HasColumnName("hora_entrada_teorica");
                 entity.Property(e => e.HoraSalidaTeorica).HasColumnName("hora_salida_teorica");
@@ -439,6 +473,7 @@ namespace Asistencia.Data.DbContexts
                 entity.Property(e => e.Fecha).HasColumnName("fecha").IsRequired();
                 entity.Property(e => e.IdHorarioTurno).HasColumnName("id_horario_turno").IsRequired(false);
                 entity.Property(e => e.EsDescanso).HasColumnName("es_descanso").HasDefaultValue(false);
+                entity.Property(e => e.EsDescansoLaborado).HasColumnName("es_descanso_laborado").HasDefaultValue(false);
                 entity.Property(e => e.EsDiaBoleta).HasColumnName("es_dia_boleta").HasDefaultValue(false);
                 entity.Property(e => e.EsVacaciones).HasColumnName("es_vacaciones").HasDefaultValue(false);
                 entity.Property(e => e.CreatedBy).HasColumnName("created_by");

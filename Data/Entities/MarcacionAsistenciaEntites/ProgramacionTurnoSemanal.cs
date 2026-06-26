@@ -14,6 +14,7 @@ namespace Asistencia.Data.Entities.MarcacionAsistenciaEntites
         public DateOnly Fecha { get; set; }
         public int? IdHorarioTurno { get; set; }
         public bool EsDescanso { get; set; }
+        public bool EsDescansoLaborado { get; set; }
         public bool EsDiaBoleta { get; set; }
         public bool EsVacaciones { get; set; }
         [Column("tipo_ausencia")]

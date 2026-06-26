@@ -1,0 +1,29 @@
+{
+  "output": {
+    "filePath": "contexto_dotnet.xml",
+    "style": "xml",
+    "headerText": "Este es un proyecto en .NET Core. Analiza la estructura."
+  },
+  "include": [
+    "**/*.cs",
+    "**/*.csproj",
+    "**/*.sln",
+    "**/*.cshtml",
+    "**/*.json",
+    "**/*.sql",
+    "Dockerfile"
+  ],
+  "ignore": {
+    "useGitignore": true,
+    "useDefaultPatterns": true,
+    "customPatterns": [
+      "**/bin/**",
+      "**/obj/**",
+      "**/.vs/**",
+      "**/.git/**",
+      "**/wwwroot/lib/**",
+      "**/Migrations/**",
+      "**/appsettings.Development.json"
+    ]
+  }
+}

@@ -15,6 +15,8 @@ namespace Asistencia.Api.Controllers
     {
         private readonly IMarcacionAsistenciaService _marcacionAsistenciaService;
         private readonly IWebHostEnvironment _environment;
+        private readonly IConfiguration _configuration;
+        private readonly ILogger<MarcacionAsistenciaController> _logger;
         private static readonly HashSet<string> AllowedImageContentTypes = new(StringComparer.OrdinalIgnoreCase)
         {
             "image/jpeg",
@@ -23,10 +25,12 @@ namespace Asistencia.Api.Controllers
         };
         private const long MaxImageBytes = 3 * 1024 * 1024;
 
-        public MarcacionAsistenciaController(IMarcacionAsistenciaService marcacionAsistenciaService, IWebHostEnvironment environment)
+        public MarcacionAsistenciaController(IMarcacionAsistenciaService marcacionAsistenciaService, IWebHostEnvironment environment, IConfiguration configuration, ILogger<MarcacionAsistenciaController> logger)
         {
             _marcacionAsistenciaService = marcacionAsistenciaService;
             _environment = environment;
+            _configuration = configuration;
+            _logger = logger;
         }
 
         [HttpGet]
@@ -75,7 +79,22 @@ namespace Asistencia.Api.Controllers
                     return BadRequest(new { success = false, code = "ERROR_IMAGEN_TIPO", message = "Formato de imagen no permitido. Use JPG, PNG o WEBP." });
                 }
 
-                fotoUrl = await SaveImageAsync(request.Foto);
+                try
+                {
+                    fotoUrl = await SaveImageAsync(request.Foto);
+                }
+                catch (Exception ex)
+                {
+                    // Log detallado para diagnosticar (ruta, permisos, recurso de red).
+                    _logger.LogError(ex,
+                        "Fallo al guardar imagen de marcación. Trabajador={IdTrabajador} BasePath='{BasePath}' WebRoot='{WebRoot}'",
+                        request.IdTrabajador,
+                        _configuration["ImageStorage:BasePath"],
+                        _environment.WebRootPath);
+                    // No bloquear el registro de asistencia por un fallo de almacenamiento de imagen:
+                    // se registra la marcación sin foto y queda el error en el log para corregir el destino.
+                    fotoUrl = null;
+                }
             }
 
             var marcacionRequest = new MarcacionRequest
@@ -117,15 +136,37 @@ namespace Asistencia.Api.Controllers
 
         private async Task<string> SaveImageAsync(IFormFile foto)
         {
-            var webRootPath = _environment.WebRootPath;
-            if (string.IsNullOrWhiteSpace(webRootPath))
+            var utcNow = DateTime.UtcNow;
+            var anio = utcNow.ToString("yyyy");
+            var mes = utcNow.ToString("MM");
+
+            // Prefijo de URL con que se sirven las imágenes (configurable; default /uploads/marcaciones)
+            var requestPath = _configuration["ImageStorage:RequestPath"];
+            if (string.IsNullOrWhiteSpace(requestPath)) requestPath = "/uploads/marcaciones";
+            requestPath = "/" + requestPath.Trim('/');
+
+            // Carpeta física base configurable (ej. recurso de red \\10.1.2.4\asistencias\imagenes).
+            // Vacío = wwwroot (comportamiento actual). Se puede cambiar desde appsettings sin recompilar.
+            var basePath = _configuration["ImageStorage:BasePath"];
+
+            string physicalFolder;
+            if (!string.IsNullOrWhiteSpace(basePath))
             {
-                webRootPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+                // Las imágenes se guardan en <BasePath>\yyyy\MM y se sirven en <RequestPath>/yyyy/MM
+                // (el mapeo de archivos estáticos hacia BasePath se configura en Program.cs).
+                physicalFolder = Path.Combine(basePath, anio, mes);
+            }
+            else
+            {
+                var webRootPath = _environment.WebRootPath;
+                if (string.IsNullOrWhiteSpace(webRootPath))
+                {
+                    webRootPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+                }
+                var relativeFolder = requestPath.TrimStart('/').Replace('/', Path.DirectorySeparatorChar);
+                physicalFolder = Path.Combine(webRootPath, relativeFolder, anio, mes);
             }
 
-            var utcNow = DateTime.UtcNow;
-            var relativeFolder = Path.Combine("uploads", "marcaciones", utcNow.ToString("yyyy"), utcNow.ToString("MM"));
-            var physicalFolder = Path.Combine(webRootPath, relativeFolder);
             Directory.CreateDirectory(physicalFolder);
 
             var extension = Path.GetExtension(foto.FileName);
@@ -142,12 +183,15 @@ namespace Asistencia.Api.Controllers
             var fileName = $"{Guid.NewGuid():N}{extension.ToLowerInvariant()}";
             var physicalPath = Path.Combine(physicalFolder, fileName);
 
+            _logger.LogInformation("Guardando imagen de marcación en '{PhysicalPath}' (BasePath='{BasePath}')",
+                physicalPath, basePath);
+
             await using (var stream = new FileStream(physicalPath, FileMode.Create))
             {
                 await foto.CopyToAsync(stream);
             }
 
-            var relativeUrl = "/" + Path.Combine(relativeFolder, fileName).Replace("\\", "/");
+            var relativeUrl = $"{requestPath}/{anio}/{mes}/{fileName}";
             return $"{Request.Scheme}://{Request.Host}{relativeUrl}";
         }
 

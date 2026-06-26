@@ -67,7 +67,8 @@ namespace Asistencia.Api.Controllers
         public async Task<IActionResult> GetResumen(
             [FromQuery] DateTime fechaInicio,
             [FromQuery] DateTime fechaFin,
-            [FromQuery] string? dni = null)
+            [FromQuery] string? dni = null,
+            [FromQuery] string? area = null)
         {
             if (fechaInicio > fechaFin)
                 return BadRequest("La fecha de inicio no puede ser mayor a la fecha fin.");
@@ -76,6 +77,7 @@ namespace Asistencia.Api.Controllers
             {
                 var jefeId = GetJefeId();
                 var result = await _reportesService.GetResumenAsistenciaAsync(fechaInicio, fechaFin, dni, jefeId);
+                result = FiltrarPorArea(result, area, r => r.Area);
                 return Ok(result);
             }
             catch (Exception ex)
@@ -87,27 +89,40 @@ namespace Asistencia.Api.Controllers
         [HttpGet("tardanzas")]
         public async Task<IActionResult> GetTardanzas(
             [FromQuery] DateTime fechaInicio,
-            [FromQuery] DateTime fechaFin)
+            [FromQuery] DateTime fechaFin,
+            [FromQuery] string? area = null)
         {
             if (fechaInicio > fechaFin)
                 return BadRequest("La fecha de inicio no puede ser mayor a la fecha fin.");
 
             var jefeId = GetJefeId();
             var resultado = await _reportesService.GetTardanzasAsync(fechaInicio, fechaFin, jefeId);
+            resultado = FiltrarPorArea(resultado, area, r => r.Area);
             return Ok(resultado);
         }
 
         [HttpGet("horas-extras")]
         public async Task<IActionResult> GetHorasExtras(
             [FromQuery] DateTime fechaInicio,
-            [FromQuery] DateTime fechaFin)
+            [FromQuery] DateTime fechaFin,
+            [FromQuery] string? area = null)
         {
             if (fechaInicio > fechaFin)
                 return BadRequest("La fecha de inicio no puede ser mayor a la fecha fin.");
 
             var jefeId = GetJefeId();
             var resultado = await _reportesService.GetHorasExtrasAsync(fechaInicio, fechaFin, jefeId);
+            resultado = FiltrarPorArea(resultado, area, r => r.Area);
             return Ok(resultado);
+        }
+
+        // Filtro en memoria por nombre de área (los reportes vienen de stored procedures
+        // que aún no reciben el área como parámetro).
+        private static IEnumerable<T> FiltrarPorArea<T>(IEnumerable<T> data, string? area, Func<T, string?> areaSelector)
+        {
+            if (string.IsNullOrWhiteSpace(area)) return data;
+            var a = area.Trim();
+            return data.Where(x => string.Equals((areaSelector(x) ?? string.Empty).Trim(), a, StringComparison.OrdinalIgnoreCase)).ToList();
         }
 
         [HttpGet("trabajadores-por-jefe")]

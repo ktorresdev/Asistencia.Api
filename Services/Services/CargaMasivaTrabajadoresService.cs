@@ -218,6 +218,9 @@ namespace Asistencia.Services.Services
                     jefeInmediatoId = idJefe;
                 }
 
+                var strategy = _context.Database.CreateExecutionStrategy();
+                await strategy.ExecuteAsync(async () =>
+                {
                 using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
                 try
                 {
@@ -285,6 +288,7 @@ namespace Asistencia.Services.Services
                     await transaction.RollbackAsync(cancellationToken);
                     AgregarErrorFila(resultados, fila, $"Error al guardar en base de datos: {ex.Message}", importacionId);
                 }
+                });
             }
 
             return ConstruirResultado(importacionId, nombreArchivo, fechaProceso, resultados);

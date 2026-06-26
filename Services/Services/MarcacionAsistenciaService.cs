@@ -17,9 +17,10 @@ namespace Asistencia.Services.Services
         private readonly MarcacionAsistenciaDbContext _context;
         private readonly IHttpContextAccessor _httpContextAccessor;
 
-        // Tolerancia de ventana de marcación: 2 horas antes y después del turno
+        // Tolerancia de ventana de marcación: 2 horas antes (entrada) y 4 horas después (salida) del turno.
+        // TODO: idealmente leer toleranciaIngreso/toleranciaSalida del TURNO en lugar de estas constantes fijas.
         private static readonly TimeSpan EarlyWindowTolerance = TimeSpan.FromHours(2);
-        private static readonly TimeSpan LateWindowTolerance = TimeSpan.FromHours(2);
+        private static readonly TimeSpan LateWindowTolerance = TimeSpan.FromHours(4);
 
         // Horario por defecto si no hay ninguna configuración
         private static readonly TimeSpan DefaultStartTime = TimeSpan.FromHours(8);
@@ -248,19 +249,26 @@ namespace Asistencia.Services.Services
             // Aplica cuando:
             //   - FIJOS que no tienen PTS explícita (su horario es siempre el mismo)
             //   - ROTATIVOS cuya semana aún no fue programada en PTS
-            var asignacion = await _context.AsignacionesTurno
+            // DOBLE TURNO: un trabajador puede tener MÁS DE UNA asignación vigente. Se
+            // recorren todas y gana la primera cuya ventana de marcación contiene 'now'.
+            // Las ventanas no se solapan (validado al asignar el 2º turno), así que el
+            // match es inequívoco.
+            var asignaciones = await _context.AsignacionesTurno
                 .Include(a => a.HorarioTurno)
                     .ThenInclude(ht => ht!.HorariosDetalle)
                 .Include(a => a.Turno)
                     .ThenInclude(t => t!.HorariosTurno!)
                         .ThenInclude(ht => ht.HorariosDetalle)
-                .FirstOrDefaultAsync(a =>
+                .Include(a => a.Turno)
+                    .ThenInclude(t => t!.TipoTurno)
+                .Where(a =>
                     a.TrabajadorId == trabajadorId &&
                     a.FechaInicioVigencia <= hoyDateOnly &&
                     (a.FechaFinVigencia == null || a.FechaFinVigencia >= hoyDateOnly) &&
-                    a.EsVigente == true);
+                    a.EsVigente == true)
+                .ToListAsync();
 
-            if (asignacion == null)
+            if (asignaciones.Count == 0)
             {
                 return new ShiftContext
                 {
@@ -270,66 +278,102 @@ namespace Asistencia.Services.Services
                 };
             }
 
-            // Obtener el HorarioTurno correcto:
-            // Primero usar el HorarioTurnoId directo de la asignación (más específico),
-            // si no hay, usar el primero activo del turno.
-            var horarioTurnoBase = asignacion.HorarioTurno    // nav directo por HorarioTurnoId
-                ?? asignacion.Turno?.HorariosTurno
-                    ?.FirstOrDefault(ht => ht.EsActivo == true);
+            // Recorrer cada asignación vigente buscando una ventana que matchee ahora.
+            // Se registran banderas para reproducir los mismos códigos de error que antes
+            // cuando NINGUNA asignación produce una ventana válida.
+            ShiftContext? fallbackContext = null;
+            bool huboFijoConDetalle = false;
+            bool huboRotativo = false;
 
-            if (horarioTurnoBase?.HorariosDetalle == null || !horarioTurnoBase.HorariosDetalle.Any())
+            foreach (var asignacion in asignaciones)
             {
+                // ROTATIVO: su horario lo define la PROGRAMACIÓN SEMANAL (PTS), resuelta en el
+                // PASO 1. Si llegó aquí es porque NO tiene PTS para hoy → no marca por esta vía.
+                var esRotativo = (asignacion.Turno?.TipoTurno?.NombreTipo ?? string.Empty)
+                    .ToUpperInvariant().Contains("ROT");
+                if (esRotativo)
+                {
+                    huboRotativo = true;
+                    continue;
+                }
+
+                // FIJO: usa ÚNICAMENTE el horario de su asignación.
+                var horarioTurnoBase = asignacion.HorarioTurno
+                    ?? asignacion.Turno?.HorariosTurno?.FirstOrDefault(ht => ht.EsActivo == true);
+
+                if (horarioTurnoBase?.HorariosDetalle == null || !horarioTurnoBase.HorariosDetalle.Any())
+                    continue;
+
+                huboFijoConDetalle = true;
+
+                // Intentar match de ventana con los detalles del horario asignado
+                foreach (var detalle in horarioTurnoBase.HorariosDetalle)
+                {
+                    if (TryMatchHorarioDetalleWindow(
+                            detalle, now,
+                            EarlyWindowTolerance, LateWindowTolerance,
+                            out var windowStart, out var windowEnd))
+                    {
+                        var scheduledRange = BuildScheduledRangeFromMatchedWindow(detalle, now);
+                        return new ShiftContext
+                        {
+                            HasAssignedShift = true,
+                            HasActiveSchedule = true,
+                            ScheduleDetail = detalle,
+                            ScheduledStart = scheduledRange.scheduledStart,
+                            ScheduledEnd = scheduledRange.scheduledEnd,
+                            WindowStart = windowStart,
+                            WindowEnd = windowEnd,
+                            FuenteHorario = "ASIGNACION_BASE"
+                        };
+                    }
+                }
+
+                // Fuera de ventana: recordar el detalle del día como posible fallback
+                // (solo el primero encontrado, para no perder la asignación principal).
+                if (includeTodayFallback && fallbackContext == null)
+                {
+                    var detalleHoy = horarioTurnoBase.HorariosDetalle
+                        .FirstOrDefault(hd => IsDiaSemanaMatch(hd.DiaSemana, now.Date));
+                    if (detalleHoy != null)
+                    {
+                        var scheduledRange = BuildScheduledRange(detalleHoy, now.Date);
+                        fallbackContext = new ShiftContext
+                        {
+                            HasAssignedShift = true,
+                            HasActiveSchedule = true,
+                            ScheduleDetail = detalleHoy,
+                            ScheduledStart = scheduledRange.scheduledStart,
+                            ScheduledEnd = scheduledRange.scheduledEnd,
+                            WindowStart = scheduledRange.scheduledStart.Subtract(EarlyWindowTolerance),
+                            WindowEnd = scheduledRange.scheduledEnd.Add(LateWindowTolerance),
+                            FuenteHorario = "ASIGNACION_FALLBACK"
+                        };
+                    }
+                }
+            }
+
+            // Ninguna asignación matcheó ventana. Devolver el fallback o el código de error
+            // equivalente al comportamiento de turno único.
+            if (fallbackContext != null)
+                return fallbackContext;
+
+            if (!huboFijoConDetalle)
+            {
+                if (huboRotativo)
+                    return new ShiftContext
+                    {
+                        HasAssignedShift = false,
+                        HasActiveSchedule = false,
+                        FuenteHorario = "ROTATIVO_SIN_PTS"
+                    };
+
                 return new ShiftContext
                 {
                     HasAssignedShift = true,
                     HasActiveSchedule = false,
                     FuenteHorario = "ASIGNACION_SIN_DETALLE"
                 };
-            }
-
-            // Intentar match de ventana con los detalles del horario base
-            foreach (var detalle in horarioTurnoBase.HorariosDetalle)
-            {
-                if (TryMatchHorarioDetalleWindow(
-                        detalle, now,
-                        EarlyWindowTolerance, LateWindowTolerance,
-                        out var windowStart, out var windowEnd))
-                {
-                    var scheduledRange = BuildScheduledRangeFromMatchedWindow(detalle, now);
-                    return new ShiftContext
-                    {
-                        HasAssignedShift = true,
-                        HasActiveSchedule = true,
-                        ScheduleDetail = detalle,
-                        ScheduledStart = scheduledRange.scheduledStart,
-                        ScheduledEnd = scheduledRange.scheduledEnd,
-                        WindowStart = windowStart,
-                        WindowEnd = windowEnd,
-                        FuenteHorario = "ASIGNACION_BASE"
-                    };
-                }
-            }
-
-            // Fuera de ventana pero con fallback → usar el detalle del día
-            if (includeTodayFallback)
-            {
-                var detalleHoy = horarioTurnoBase.HorariosDetalle
-                    .FirstOrDefault(hd => IsDiaSemanaMatch(hd.DiaSemana, now.Date));
-                if (detalleHoy != null)
-                {
-                    var scheduledRange = BuildScheduledRange(detalleHoy, now.Date);
-                    return new ShiftContext
-                    {
-                        HasAssignedShift = true,
-                        HasActiveSchedule = true,
-                        ScheduleDetail = detalleHoy,
-                        ScheduledStart = scheduledRange.scheduledStart,
-                        ScheduledEnd = scheduledRange.scheduledEnd,
-                        WindowStart = scheduledRange.scheduledStart.Subtract(EarlyWindowTolerance),
-                        WindowEnd = scheduledRange.scheduledEnd.Add(LateWindowTolerance),
-                        FuenteHorario = "ASIGNACION_FALLBACK"
-                    };
-                }
             }
 
             // ── PASO 3: Horario genérico por defecto ────────────────────
@@ -398,11 +442,14 @@ namespace Asistencia.Services.Services
 
             if (!shiftContext.HasAssignedShift)
             {
+                var esRotSinPts = shiftContext.FuenteHorario == "ROTATIVO_SIN_PTS";
                 return new MarcacionResponse
                 {
                     Success = false,
                     Code = "ERROR_NO_TURNO",
-                    Message = "No tiene un turno asignado para la fecha actual.",
+                    Message = esRotSinPts
+                        ? "Su turno rotativo no tiene horario programado para hoy. Solicite la programación semanal."
+                        : "No tiene un turno asignado para la fecha actual.",
                     Detail = $"Verifique asignación de turno del trabajador. [Fuente: {shiftContext.FuenteHorario}]"
                 };
             }
@@ -411,7 +458,6 @@ namespace Asistencia.Services.Services
             var trabajador = await _context.Trabajadores
                 .Include(t => t.Sucursal)
                 .Include(t => t.TrabajadorSucursales!)
-                    .ThenInclude(ts => ts.Sucursal)
                 .FirstOrDefaultAsync(t => t.Id == marcacionRequest.IdTrabajador);
 
             if (trabajador == null)
@@ -462,7 +508,7 @@ namespace Asistencia.Services.Services
             var windowEnd = shiftContext.WindowEnd.Value;
 
              //── 3.Validar geolocalización ───────────────────────────────
-             var (geofenceSucursal, distancia, ubicacionValida) = ResolverSucursalPorUbicacion(
+             var (geofenceSucursal, distancia, ubicacionValida) = await ResolverSucursalPorUbicacionAsync(
                 trabajador, marcacionRequest.Latitud, marcacionRequest.Longitud);
 
             // Bloquear GPS falso solo si el trabajador tiene validación de zona activa
@@ -489,40 +535,74 @@ namespace Asistencia.Services.Services
             }
 
              //── 4.Determinar tipo de marcación(ENTRADA / SALIDA) ───────
-             var existingMarksToday = await _context.MarcacionesAsistencia
-                 .Where(m =>
-                     m.TrabajadorId == marcacionRequest.IdTrabajador &&
-                     m.FechaHora >= windowStart &&
-                     m.FechaHora <= windowEnd)
-                 .OrderBy(m => m.FechaHora)
-                 .ToListAsync();
+            // ¿Doble turno? (más de una asignación vigente hoy)
+            var hoyDateOnlyMarca = DateOnly.FromDateTime(now.Date);
+            var vigentesCount = await _context.AsignacionesTurno.CountAsync(a =>
+                a.TrabajadorId == marcacionRequest.IdTrabajador &&
+                a.FechaInicioVigencia <= hoyDateOnlyMarca &&
+                (a.FechaFinVigencia == null || a.FechaFinVigencia >= hoyDateOnlyMarca) &&
+                a.EsVigente == true);
 
             string tipoMarcacion;
-            if (!existingMarksToday.Any())
+            List<MarcacionAsistencia> scanMarks;
+
+            if (vigentesCount > 1)
             {
-                tipoMarcacion = "ENTRADA";
+                // DOBLE TURNO (contiguo o con hueco): presencia continua. El tipo se
+                // decide por TOGGLE sobre la última marca en un rango amplio del día,
+                // y se PERMITE REINGRESO (no se bloquea tras una SALIDA). Así el
+                // trabajador puede marcar solo ENTRADA al inicio y SALIDA al final
+                // (contiguo), o entrar/salir en cada turno (con hueco). El reparto por
+                // turno lo hace el cierre.
+                var spanStart = now.AddHours(-20);
+                var spanEnd = now.AddHours(4);
+                scanMarks = await _context.MarcacionesAsistencia
+                    .Where(m => m.TrabajadorId == marcacionRequest.IdTrabajador &&
+                                m.FechaHora >= spanStart && m.FechaHora <= spanEnd)
+                    .OrderBy(m => m.FechaHora)
+                    .ToListAsync();
+
+                var last = scanMarks.LastOrDefault();
+                tipoMarcacion = (last != null && string.Equals(last.TipoMarcacion, "ENTRADA", StringComparison.OrdinalIgnoreCase))
+                    ? "SALIDA" : "ENTRADA";
             }
             else
             {
-                var lastMark = existingMarksToday.Last();
-                if (string.Equals(lastMark.TipoMarcacion, "ENTRADA", StringComparison.OrdinalIgnoreCase))
+                // TURNO ÚNICO: lógica original acotada a la ventana del turno.
+                scanMarks = await _context.MarcacionesAsistencia
+                    .Where(m =>
+                        m.TrabajadorId == marcacionRequest.IdTrabajador &&
+                        m.FechaHora >= windowStart &&
+                        m.FechaHora <= windowEnd)
+                    .OrderBy(m => m.FechaHora)
+                    .ToListAsync();
+
+                if (!scanMarks.Any())
                 {
-                    tipoMarcacion = "SALIDA";
+                    tipoMarcacion = "ENTRADA";
                 }
                 else
                 {
-                    return new MarcacionResponse
+                    var lastMark = scanMarks.Last();
+                    if (string.Equals(lastMark.TipoMarcacion, "ENTRADA", StringComparison.OrdinalIgnoreCase))
                     {
-                        Success = false,
-                        Code = "ERROR_SALIDA_REGISTRADA",
-                        Message = "Ya registró su salida hoy; no se permite nueva entrada sin configuración de turnos adicionales.",
-                        Detail = "Si corresponde, configure turnos adicionales o permita reingresos."
-                    };
+                        tipoMarcacion = "SALIDA";
+                    }
+                    else
+                    {
+                        return new MarcacionResponse
+                        {
+                            Success = false,
+                            Code = "ERROR_SALIDA_REGISTRADA",
+                            Message = "Ya registró su salida hoy; no se permite nueva entrada sin configuración de turnos adicionales.",
+                            Detail = "Si corresponde, configure turnos adicionales o permita reingresos."
+                        };
+                    }
                 }
             }
 
              //── 5.Evitar duplicados recientes(ventana 2 minutos) ───────
-             var existeMarcacionIgual = existingMarksToday.Any(m =>
+             var existeMarcacionIgual = scanMarks.Any(m =>
                  m.TipoMarcacion == tipoMarcacion &&
                  Math.Abs((m.FechaHora - now).TotalSeconds) < 120);
 
@@ -662,26 +742,31 @@ namespace Asistencia.Services.Services
         /// - Si está dentro del geofence de alguna → usa la más cercana de esas.
         /// - Si está fuera de todas → devuelve la más cercana con dentroDeZona=false.
         /// </summary>
-        private (SucursalCentro sucursal, double distanciaM, bool dentroDeZona) ResolverSucursalPorUbicacion(
+        private async Task<(SucursalCentro sucursal, double distanciaM, bool dentroDeZona)> ResolverSucursalPorUbicacionAsync(
             Trabajador trabajador, double lat, double lon)
         {
             var today = DateOnly.FromDateTime(DateTime.Today);
 
-            // Construir lista de sedes activas
+            // Recopilar IDs de sedes activas desde TrabajadorSucursal
+            var idsAdicionales = trabajador.TrabajadorSucursales?
+                .Where(ts =>
+                    ts.SucursalId != trabajador.SucursalId &&
+                    ts.FechaInicio <= today &&
+                    (ts.FechaFin == null || ts.FechaFin.Value >= today))
+                .Select(ts => ts.SucursalId)
+                .ToList() ?? new List<int>();
+
+            // Construir lista de sedes activas consultando SucursalCentro directamente
             var sedes = new List<SucursalCentro>();
 
             if (trabajador.Sucursal != null)
                 sedes.Add(trabajador.Sucursal);
 
-            if (trabajador.TrabajadorSucursales != null)
+            if (idsAdicionales.Count > 0)
             {
-                var adicionales = trabajador.TrabajadorSucursales
-                    .Where(ts =>
-                        ts.SucursalId != trabajador.SucursalId &&
-                        ts.FechaInicio <= today &&
-                        (ts.FechaFin == null || ts.FechaFin.Value >= today) &&
-                        ts.Sucursal != null)
-                    .Select(ts => ts.Sucursal!);
+                var adicionales = await _context.SucursalCentros
+                    .Where(s => idsAdicionales.Contains(s.Id))
+                    .ToListAsync();
                 sedes.AddRange(adicionales);
             }
 

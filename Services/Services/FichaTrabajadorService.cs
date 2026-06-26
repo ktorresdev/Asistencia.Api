@@ -19,6 +19,9 @@ namespace Asistencia.Services.Services
         }
         public async Task<TrabajadorResponseDto> postCrearTrabajador(CreateTrabajadorDto createTrabajadorDto)
         {
+            var strategy = _context.Database.CreateExecutionStrategy();
+            return await strategy.ExecuteAsync<TrabajadorResponseDto>(async () =>
+            {
             using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
@@ -98,11 +101,15 @@ namespace Asistencia.Services.Services
                 // Lanza una excepción más amigable que la de EF Core
                 throw new Exception("Error al guardar en la base de datos. Verifique que todos los IDs relacionados (Usuario, Sucursal, etc.) son correctos.", dbEx);
             }
+            });
             // El catch genérico no es necesario si ya capturas las excepciones específicas que esperas.
         }
 
         public async Task<TrabajadorResponseDto> UpdateTrabajadorAsync(int id, UpdateTrabajadorDto updateDto)
         {
+            var strategy = _context.Database.CreateExecutionStrategy();
+            return await strategy.ExecuteAsync<TrabajadorResponseDto>(async () =>
+            {
             using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
@@ -172,6 +179,7 @@ namespace Asistencia.Services.Services
                 await transaction.RollbackAsync();
                 throw new Exception("Error al actualizar en la base de datos. Verifique los datos e intente de nuevo.", dbEx);
             }
+            });
         }
     }
 }

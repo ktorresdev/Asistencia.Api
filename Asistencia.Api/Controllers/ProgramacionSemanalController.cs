@@ -49,6 +49,12 @@ namespace Asistencia.Api.Controllers
         {
             if (fechaInicio > fechaFin) return BadRequest("fechaInicio no puede ser mayor a fechaFin");
 
+            // Filtro opcional por área (aplica a todos los roles)
+            int? idAreaFiltro = null;
+            var areaParam = HttpContext.Request.Query["idArea"].FirstOrDefault();
+            if (int.TryParse(areaParam, out var areaId) && areaId > 0)
+                idAreaFiltro = areaId;
+
             // ADMIN (jefe local) solo ve sus trabajadores directos.
             // Si envía sucursalId de una sede en comisión → ve todos los de esa sede.
             // SUPERADMIN ve todo.
@@ -106,7 +112,8 @@ namespace Asistencia.Api.Controllers
                     (soloSede
                         ? t.SucursalId == sucursalFiltro
                         : (!jefeId.HasValue || t.JefeInmediatoId == jefeId.Value))
-                    && (!sucursalFiltro.HasValue || soloSede || t.SucursalId == sucursalFiltro))
+                    && (!sucursalFiltro.HasValue || soloSede || t.SucursalId == sucursalFiltro)
+                    && (!idAreaFiltro.HasValue || t.IdArea == idAreaFiltro))
                 .ToListAsync();
 
             // PASO 1b: Cargar TODOS los horarios activos con sus detalles
@@ -175,7 +182,8 @@ namespace Asistencia.Api.Controllers
                                      progSemanal.EsDescanso ? "descanso" :
                                      progSemanal.EsDiaBoleta ? "boleta" :
                                      progSemanal.EsVacaciones ? "vacaciones" : "trabaja",
-                            TipoAusencia = progSemanal.TipoAusencia
+                            TipoAusencia = progSemanal.TipoAusencia,
+                            EsDescansoLaborado = progSemanal.EsDescansoLaborado
                         });
                     }
                     else
@@ -287,6 +295,7 @@ namespace Asistencia.Api.Controllers
                     Fecha = p.Fecha,
                     IdHorarioTurno = p.IdHorarioTurno,
                     EsDescanso = p.EsDescanso,
+                    EsDescansoLaborado = p.EsDescansoLaborado,
                     EsDiaBoleta = p.EsDiaBoleta,
                     EsVacaciones = p.EsVacaciones,
                     TipoAusencia = string.IsNullOrWhiteSpace(p.TipoAusencia) ? null : p.TipoAusencia.ToUpper(),
@@ -321,7 +330,8 @@ namespace Asistencia.Api.Controllers
             [FromQuery] DateOnly? fechaInicio,
             [FromQuery] DateOnly? fechaFin,
             [FromQuery] int? trabajadorId,
-            [FromQuery] string? tipo)
+            [FromQuery] string? tipo,
+            [FromQuery] int? idArea)
         {
             var query = _context.ProgramacionTurnosSemanal
                 .Include(p => p.Trabajador).ThenInclude(t => t.Persona)
@@ -332,6 +342,7 @@ namespace Asistencia.Api.Controllers
             if (fechaFin.HasValue)    query = query.Where(p => p.Fecha <= fechaFin.Value);
             if (trabajadorId.HasValue) query = query.Where(p => p.TrabajadorId == trabajadorId.Value);
             if (!string.IsNullOrWhiteSpace(tipo)) query = query.Where(p => p.TipoAusencia == tipo.ToUpper());
+            if (idArea.HasValue) query = query.Where(p => p.Trabajador.IdArea == idArea.Value);
 
             // ADMIN: solo ve ausencias de sus trabajadores directos
             if (User.IsInRole("ADMIN") && !User.IsInRole("SUPERADMIN"))

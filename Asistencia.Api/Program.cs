@@ -27,7 +27,12 @@ builder.Host.UseSerilog();
 
 // DbContext (SQL Server ejemplo, cambia la cadena seg�n tu entorno)
 builder.Services.AddDbContext<MarcacionAsistenciaDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("RrhhConnection")));
+    options.UseSqlServer(builder.Configuration.GetConnectionString("RrhhConnection"),
+        sqlOptions => sqlOptions
+            .UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery)
+            // Resiliencia ante cortes/timeouts transitorios de la BD (evita el "API Error" por caidas momentaneas).
+            .EnableRetryOnFailure(maxRetryCount: 5, maxRetryDelay: TimeSpan.FromSeconds(10), errorNumbersToAdd: null)
+            .CommandTimeout(60)));
 builder.Services.AddScoped<IMarcacionAsistenciaService, MarcacionAsistenciaService>();
 builder.Services.AddScoped<ISucursalCentroService, SucursalCentroService>();
 builder.Services.AddScoped<ITrabajadorService, TrabajadorService>();
@@ -155,6 +160,23 @@ app.UseSwaggerUI();
 app.UseCors(MyAllowSpecificOrigins);
 app.UseHttpsRedirection();
 app.UseStaticFiles();
+
+// Imágenes de marcación: si ImageStorage:BasePath está configurado (ej. recurso de red
+// \\10.1.2.4\asistencias\imagenes), se sirven también desde ahí en RequestPath, además de
+// wwwroot. Así se puede mover el almacenamiento solo cambiando appsettings, y las imágenes
+// nuevas (en la ruta de red) y las antiguas (en wwwroot) quedan accesibles.
+var imgBasePath = builder.Configuration["ImageStorage:BasePath"];
+var imgRequestPath = builder.Configuration["ImageStorage:RequestPath"];
+if (string.IsNullOrWhiteSpace(imgRequestPath)) imgRequestPath = "/uploads/marcaciones";
+imgRequestPath = "/" + imgRequestPath.Trim('/');
+if (!string.IsNullOrWhiteSpace(imgBasePath) && Directory.Exists(imgBasePath))
+{
+    app.UseStaticFiles(new StaticFileOptions
+    {
+        FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(imgBasePath),
+        RequestPath = imgRequestPath
+    });
+}
 
 app.UseAuthentication();
 app.UseAuthorization();

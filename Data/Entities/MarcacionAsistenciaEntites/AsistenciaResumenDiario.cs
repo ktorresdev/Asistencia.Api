@@ -6,6 +6,9 @@ namespace Asistencia.Data.Entities.MarcacionAsistenciaEntites
     {
         public long Id { get; set; }
         public int TrabajadorId { get; set; }
+        // Asignación de turno a la que corresponde esta fila. Permite >1 fila por
+        // trabajador/día (doble turno). NULL en filas de ausencia sin asignación.
+        public int? AsignacionTurnoId { get; set; }
         public DateOnly FechaAsistencia { get; set; }
         public DateTime? HoraEntradaTeorica { get; set; }
         public DateTime? HoraSalidaTeorica { get; set; }

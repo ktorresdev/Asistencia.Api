@@ -51,12 +51,17 @@ namespace Asistencia.Api.Controllers
                 .Select(g => new { Estado = g.Key, Cant = g.Count() })
                 .ToListAsync();
 
-            var presenteHoy   = asistenciasHoy.Where(x => x.Estado != null && x.Estado.StartsWith("PRESENTE")).Sum(x => x.Cant);
+            // Tardanza = asistió pero tarde; cuenta como presente.
             var tardanzaHoy   = asistenciasHoy.Where(x => x.Estado != null && x.Estado.StartsWith("TARDANZA")).Sum(x => x.Cant);
+            // Presente = todos los que asistieron (incluye tardanzas). El SP de cierre marca la
+            // asistencia como "ASISTENCIA" (o "ASISTIO" en datos antiguos); las justificaciones
+            // aprobadas la dejan como "PRESENTE"; y se suman las TARDANZAS porque también asistieron.
+            var presenteHoy   = asistenciasHoy.Where(x => x.Estado != null && (x.Estado.StartsWith("PRESENTE") || x.Estado == "ASISTENCIA" || x.Estado == "ASISTIO")).Sum(x => x.Cant) + tardanzaHoy;
             var faltaHoy      = asistenciasHoy.Where(x => x.Estado != null && (x.Estado.StartsWith("FALTA") || x.Estado == "AUSENTE")).Sum(x => x.Cant);
             var totalRegistrados = asistenciasHoy.Sum(x => x.Cant);
+            // presenteHoy ya incluye las tardanzas, por eso NO se vuelven a sumar aquí.
             var porcentajeAsistencia = totalRegistrados > 0
-                ? Math.Round((presenteHoy + tardanzaHoy) * 100.0 / totalRegistrados, 1)
+                ? Math.Round(presenteHoy * 100.0 / totalRegistrados, 1)
                 : 0.0;
 
             // Ausencias esta semana (PTS con tipo_ausencia != null)

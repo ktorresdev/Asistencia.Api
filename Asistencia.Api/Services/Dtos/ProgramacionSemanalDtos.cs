@@ -30,6 +30,7 @@ namespace Asistencia.Services.Dtos
         public string? TurnoNombre { get; set; }
         public string Estado { get; set; } = "planificado";
         public string? TipoAusencia { get; set; }
+        public bool EsDescansoLaborado { get; set; } = false;
     }
 
     public class PublicarProgramacionDto

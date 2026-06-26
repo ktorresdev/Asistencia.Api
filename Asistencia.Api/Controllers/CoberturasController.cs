@@ -60,7 +60,7 @@ namespace Asistencia.Api.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetAll([FromQuery] DateTime? fecha, [FromQuery] string? estado, [FromQuery] int? idTrabajador)
+        public async Task<IActionResult> GetAll([FromQuery] DateTime? fecha, [FromQuery] string? estado, [FromQuery] int? idTrabajador, [FromQuery] int? idArea)
         {
             var role = (User.FindFirst(ClaimTypes.Role)?.Value ?? string.Empty).Trim().ToUpperInvariant();
 
@@ -122,10 +122,13 @@ namespace Asistencia.Api.Controllers
                   AND ({3} IS NULL
                        OR EXISTS (SELECT 1 FROM dbo.TRABAJADORES t WHERE t.id_trabajador = c.id_trabajador_ausente AND t.id_jefe_inmediato = {3})
                        OR EXISTS (SELECT 1 FROM dbo.TRABAJADORES t WHERE t.id_trabajador = c.id_trabajador_cubre  AND t.id_jefe_inmediato = {3}))
+                  AND ({4} IS NULL
+                       OR EXISTS (SELECT 1 FROM dbo.TRABAJADORES t WHERE t.id_trabajador = c.id_trabajador_ausente AND t.id_area = {4})
+                       OR EXISTS (SELECT 1 FROM dbo.TRABAJADORES t WHERE t.id_trabajador = c.id_trabajador_cubre  AND t.id_area = {4}))
                 ORDER BY c.fecha DESC";
 
             var data = await _context.Database
-                .SqlQueryRaw<CoberturaDto>(baseQuery, fecha, estado, idTrabajador, jefeId)
+                .SqlQueryRaw<CoberturaDto>(baseQuery, fecha, estado, idTrabajador, jefeId, idArea)
                 .ToListAsync();
 
             return Ok(data);

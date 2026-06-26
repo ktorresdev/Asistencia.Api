@@ -16,6 +16,7 @@ namespace Asistencia.Data.Entities.MarcacionAsistenciaEntites
         public string? Cargo { get; set; }
         public string? AreaDepartamento { get; set; }
         public int? IdArea { get; set; }
+        public int? IdPuesto { get; set; }
         public DateTime? FechaIngreso { get; set; }
         public DateTime? FechaBaja { get; set; }
         public int IdEstado { get; set; }
@@ -30,6 +31,8 @@ namespace Asistencia.Data.Entities.MarcacionAsistenciaEntites
         public virtual Persona Persona { get; set; } = null!;
         public virtual Trabajador? JefeInmediato { get; set; }
         public virtual SucursalCentro? Sucursal { get; set; }
+        public virtual Area? Area { get; set; }
+        public virtual Puesto? Puesto { get; set; }
         public virtual User User { get; set; } = null!;
         // Propiedad de navegación para el estado
         public virtual MaestroEstado Estado { get; set; } = null!;

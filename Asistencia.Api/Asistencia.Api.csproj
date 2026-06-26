@@ -4,6 +4,11 @@
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <!-- Inyecta ASPNETCORE_ENVIRONMENT=Production en el web.config al publicar, para que
+         el despliegue tome appsettings.Production.json. No afecta a 'dotnet run' (dev usa
+         launchSettings = Development). Para un publish de QA, sobrescribir con
+         -p:EnvironmentName=Staging y NO copiar appsettings.Production.json. -->
+    <EnvironmentName>Production</EnvironmentName>
   </PropertyGroup>
 
   <ItemGroup>

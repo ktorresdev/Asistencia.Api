@@ -55,6 +55,8 @@ namespace Asistencia.Services.Implements
         public int? SucursalId { get; set; }
         public string? Cargo { get; set; }
         public string? AreaDepartamento { get; set; }
+        public int? IdArea { get; set; }
+        public int? IdPuesto { get; set; }
         public int? JefeInmediatoId { get; set; }
         public bool MarcajeEnZona { get; set; }
         public bool TomarFoto { get; set; } = true;

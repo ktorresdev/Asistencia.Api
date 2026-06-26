@@ -26,6 +26,8 @@ namespace Asistencia.Services.Dtos
 
         public bool EsDescanso { get; set; } = false;
 
+        public bool EsDescansoLaborado { get; set; } = false;
+
         public bool EsDiaBoleta { get; set; } = false;
 
         public bool EsVacaciones { get; set; } = false;
